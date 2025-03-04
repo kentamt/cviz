@@ -1,8 +1,38 @@
 import math
+
 import numpy as np
 import time
 import random
+import logging
+
 from publisher import Publisher
+from kinematic_model import KinematicBicycleModel
+
+logging.basicConfig(level=logging.DEBUG)
+
+
+def generate_rectangle(center_x=300, center_y=300, w=100, h=100, yaw=0):
+    """Generate a rectangle polygon with specified parameters."""
+    points = [
+        {
+            'x': center_x + w * math.cos(yaw) - h * math.sin(yaw),
+            'y': center_y + w * math.sin(yaw) + h * math.cos(yaw)
+        },
+        {
+            'x': center_x - w * math.cos(yaw) - h * math.sin(yaw),
+            'y': center_y - w * math.sin(yaw) + h * math.cos(yaw)
+        },
+        {
+            'x': center_x - w * math.cos(yaw) + h * math.sin(yaw),
+            'y': center_y - w * math.sin(yaw) - h * math.cos(yaw)
+        },
+        {
+            'x': center_x + w * math.cos(yaw) + h * math.sin(yaw),
+            'y': center_y + w * math.sin(yaw) - h * math.cos(yaw)
+        }
+    ]
+    
+    return points
 
 def generate_polygon(num_points=5, center_x=300, center_y=300, radius=100):
     """Generate a random polygon with specified parameters."""
@@ -19,7 +49,7 @@ def generate_polygon(num_points=5, center_x=300, center_y=300, radius=100):
     
     return points
 
-def generate_point(center_x=300, center_y=300, radius=100):
+def generate_point(center_x=300, center_y=300, radius=30):
     """Generate a random point near a center with specified radius."""
     angle = random.uniform(0, 2 * math.pi)
     distance = random.uniform(0, radius)
@@ -50,9 +80,16 @@ def generate_linestring(num_points=5, center_x=300, center_y=300, radius=100):
 
 
 def main():
+    
+    # Create publishers
     polygon_pub = Publisher(topic_name="polygon", data_type='Polygon')
     point_pub = Publisher(topic_name="point", data_type='Point2d')
     line_pub = Publisher(topic_name="linestring", data_type='LineString')
+
+    model = KinematicBicycleModel(x=300, y=300, v=20)
+    acceleration = 0.0 
+    steer_ang = math.radians(10.0)
+
 
     time.sleep(1)
     
@@ -60,9 +97,19 @@ def main():
 
     try:
         while True:
+            
+            # evolve the model
+            model.update(acceleration, steer_ang)
+            state = model.get_state()
+            x, y, yaw, v = state
+            
             # Publish Polygon
+            # polygon_data = {
+            #     'points': generate_polygon()
+            # }
+            
             polygon_data = {
-                'points': generate_polygon()
+                'points': generate_rectangle(center_x=x, center_y=y, w=10, h=5,yaw=yaw)
             }
             polygon_pub.publish(polygon_data)
             
@@ -78,7 +125,14 @@ def main():
             }
             line_pub.publish(linestring_data)
             
-            time.sleep(1./60.)
+            
+            logging.debug(f"Published: Polygon: {polygon_data}, Point: {point_data}, LineString: {linestring_data}")
+            
+            steer_ang = math.radians(random.uniform(-30, 30))
+            
+            time.sleep(1./24.)
+            # time.sleep(1./10.)
+            
 
     except KeyboardInterrupt:
         print("\n🛑 Simulator stopped")

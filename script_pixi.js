@@ -1,4 +1,4 @@
-import * as PIXI from './node_modules/pixi.js/dist/pixi.mjs';
+import * as PIXI from 'https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.mjs';
 
 // Debugging and connection settings
 const SERVER_URL = "ws://127.0.0.1:6789";
@@ -9,7 +9,8 @@ const BASE_RECONNECT_TIMEOUT = 1000;  // 1 second
 const Logger = {
     log: (message) => console.log(`🌐 ${message}`),
     error: (message) => console.error(`❌ ${message}`),
-    warn: (message) => console.warn(`⚠️ ${message}`)
+    warn: (message) => console.warn(`⚠️ ${message}`),
+    debug: (message) => console.debug(`🐞 ${message}`)
 };
 
 // Configuration for topic-specific styling
@@ -32,9 +33,11 @@ const TOPIC_STYLES = {
 
 class GeometryRenderer {
     constructor() {
-        // Ensure PIXI is loaded
-        if (!PIXI) {
-            throw new Error('Pixi.js not loaded');
+        // Explicit check for PIXI
+        Logger.debug('PIXI object:', PIXI);
+        
+        if (!PIXI || !PIXI.Application) {
+            throw new Error('Pixi.js not loaded correctly');
         }
 
         // Create a container for the Pixi application
@@ -42,14 +45,29 @@ class GeometryRenderer {
         this.container.id = 'pixi-container';
         document.body.appendChild(this.container);
 
-        // Initialize Pixi application
-        this.app = new PIXI.Application({
-            width: window.innerWidth,
-            height: window.innerHeight,
-            backgroundColor: 0x101010,
-            resolution: window.devicePixelRatio || 1,
-            autoDensity: true
-        });
+        // More verbose application initialization
+        try {
+            this.app = new PIXI.Application({
+                width: window.innerWidth,
+                height: window.innerHeight,
+                backgroundColor: 0x101010,
+                resolution: window.devicePixelRatio || 1,
+                autoDensity: true,
+                antialias: true
+            });
+        } catch (error) {
+            Logger.error('Failed to create PIXI Application:', error);
+            throw error;
+        }
+
+        // Explicit logging of application creation
+        Logger.debug('PIXI Application created:', this.app);
+        Logger.debug('PIXI View:', this.app.view);
+
+        // Ensure view is a canvas element
+        if (!(this.app.view instanceof HTMLCanvasElement)) {
+            throw new Error('PIXI application did not create a canvas');
+        }
 
         // Append Pixi view to the container
         this.container.appendChild(this.app.view);
@@ -90,16 +108,19 @@ class GeometryRenderer {
     drawPolygon(points, color, topic) {
         if (points.length < 3) return null;
 
+        const alpha = 0.2;
         const graphics = new PIXI.Graphics();
-        graphics.beginFill(color, 0.7);
+        graphics.beginFill(color, alpha);
         graphics.lineStyle(2, color, 1);
 
         // Move to first point
-        graphics.moveTo(points[0].x, this.flipY(points[0].y));
+        // graphics.moveTo(points[0].x, this.flipY(points[0].y));
+        graphics.moveTo(points[0].x, points[0].y);
 
         // Draw lines to subsequent points
         for (let i = 1; i < points.length; i++) {
-            graphics.lineTo(points[i].x, this.flipY(points[i].y));
+            // graphics.lineTo(points[i].x, this.flipY(points[i].y));
+            graphics.lineTo(points[i].x, points[i].y);
         }
 
         // Close the polygon
@@ -114,8 +135,12 @@ class GeometryRenderer {
 
     drawPoint(point, color, topic, radius = 5) {
         const graphics = new PIXI.Graphics();
-        graphics.beginFill(color, 0.7);
-        graphics.drawCircle(point.x, this.flipY(point.y), radius);
+        graphics.beginFill(color, 0.5);
+
+        // graphics.drawCircle(point.x, this.flipY(point.y), radius);
+        // TODO: Fix Y coordinate flipping
+        graphics.drawCircle(point.x, point.y, radius);
+    
         graphics.endFill();
 
         // Add metadata for potential interaction
@@ -131,11 +156,13 @@ class GeometryRenderer {
         graphics.lineStyle(lineWidth, color, 1);
 
         // Move to first point
-        graphics.moveTo(points[0].x, this.flipY(points[0].y));
+        // graphics.moveTo(points[0].x, this.flipY(points[0].y));
+        graphics.moveTo(points[0].x, points[0].y);
 
         // Draw lines to subsequent points
         for (let i = 1; i < points.length; i++) {
-            graphics.lineTo(points[i].x, this.flipY(points[i].y));
+            // graphics.lineTo(points[i].x, this.flipY(points[i].y));
+            graphics.lineTo(points[i].x, points[i].y);
         }
 
         // Add metadata for potential interaction
@@ -181,6 +208,32 @@ class WebSocketManager {
     }
 
     init() {
+        try {
+            this.renderer = new GeometryRenderer();
+        } catch (error) {
+            Logger.error(`Detailed renderer initialization error: ${error.message}`);
+            Logger.error(`Error stack: ${error.stack}`);
+            
+            // Create a user-friendly error display
+            const errorDiv = document.createElement('div');
+            errorDiv.style.color = 'red';
+            errorDiv.style.padding = '20px';
+            errorDiv.style.backgroundColor = '#ffeeee';
+            errorDiv.innerHTML = `
+                <h2>Renderer Initialization Failed</h2>
+                <p>There was an error setting up the graphics renderer:</p>
+                <pre>${error.message}</pre>
+                <p>Possible causes:
+                    - Pixi.js not loaded correctly
+                    - Browser compatibility issues
+                    - Missing dependencies
+                </p>
+            `;
+            document.body.appendChild(errorDiv);
+            
+            return;
+        }
+
         this.ws = null;
         this.reconnectAttempts = 0;
         this.geometries = {
@@ -189,54 +242,107 @@ class WebSocketManager {
             LineString: {}
         };
 
-        // Initialize renderer
-        try {
-            this.renderer = new GeometryRenderer();
-        } catch (error) {
-            Logger.error(`Failed to initialize renderer: ${error.message}`);
-            return;
-        }
-
         this.connectWebSocket();
     }
 
     validateGeometryData(data) {
+        // Enhanced logging for data validation
+        Logger.debug('Received data:', JSON.stringify(data));
+
         const validTypes = {
-            Polygon: (data) => (
-                data && 
-                data.data_type === "Polygon" && 
-                data.topic &&
-                Array.isArray(data.points) && 
-                data.points.length > 0 && 
-                data.points.every(point => 
-                    point && 
-                    typeof point.x === 'number' && 
-                    typeof point.y === 'number'
-                )
-            ),
-            Point2d: (data) => (
-                data && 
-                data.data_type === "Point2d" && 
-                data.topic &&
-                data.point && 
-                typeof data.point.x === 'number' && 
-                typeof data.point.y === 'number'
-            ),
-            LineString: (data) => (
-                data && 
-                data.data_type === "LineString" && 
-                data.topic &&
-                Array.isArray(data.points) && 
-                data.points.length > 1 && 
-                data.points.every(point => 
-                    point && 
-                    typeof point.x === 'number' && 
-                    typeof point.y === 'number'
-                )
-            )
+            Polygon: (data) => {
+                const isValid = (
+                    data && 
+                    data.data_type === "Polygon" && 
+
+                    // data.topic &&
+                    Array.isArray(data.points) && 
+                    data.points.length > 0 && 
+                    data.points.every(point => 
+                        point && 
+                        typeof point.x === 'number' && 
+                        typeof point.y === 'number'
+                    )
+                );
+                
+                if (!isValid) {
+                    Logger.warn('Invalid Polygon data:', {
+                        hasDataType: data?.data_type === "Polygon",
+                        hasTopic: !!data?.topic,
+                        pointsArray: Array.isArray(data?.points),
+                        pointsLength: data?.points?.length,
+                        pointsValid: data?.points?.every(point => 
+                            point && 
+                            typeof point.x === 'number' && 
+                            typeof point.y === 'number'
+                        )
+                    });
+                }
+                
+                return isValid;
+            },
+            Point2d: (data) => {
+                const isValid = (
+                    data && 
+                    data.data_type === "Point2d" && 
+                    // data.topic &&
+                    data.point && 
+                    typeof data.point.x === 'number' && 
+                    typeof data.point.y === 'number'
+                );
+                
+                if (!isValid) {
+                    Logger.warn('Invalid Point2d data:', {
+                        hasDataType: data?.data_type === "Point2d",
+                        hasTopic: !!data?.topic,
+                        pointExists: !!data?.point,
+                        xValid: typeof data?.point?.x === 'number',
+                        yValid: typeof data?.point?.y === 'number'
+                    });
+                }
+                
+                return isValid;
+            },
+            LineString: (data) => {
+                const isValid = (
+                    data && 
+                    data.data_type === "LineString" && 
+                    // data.topic &&
+                    Array.isArray(data.points) && 
+                    data.points.length > 1 && 
+                    data.points.every(point => 
+                        point && 
+                        typeof point.x === 'number' && 
+                        typeof point.y === 'number'
+                    )
+                );
+                
+                if (!isValid) {
+                    Logger.warn('Invalid LineString data:', {
+                        hasDataType: data?.data_type === "LineString",
+                        hasTopic: !!data?.topic,
+                        pointsArray: Array.isArray(data?.points),
+                        pointsLength: data?.points?.length,
+                        pointsValid: data?.points?.every(point => 
+                            point && 
+                            typeof point.x === 'number' && 
+                            typeof point.y === 'number'
+                        )
+                    });
+                }
+                
+                return isValid;
+            }
         };
 
-        return validTypes[data.data_type] ? validTypes[data.data_type](data) : false;
+        // Check if data_type exists and is one of the valid types
+        if (!data || !data.data_type || !validTypes[data.data_type]) {
+            Logger.warn('Invalid data type:', data?.data_type);
+            return false;
+        }
+
+        // Use the specific validation function for the data type
+        return validTypes[data.data_type](data);
     }
 
     connectWebSocket() {
@@ -262,6 +368,8 @@ class WebSocketManager {
             try {
                 const data = JSON.parse(event.data);
 
+                // console.log('Received data:', data);
+
                 if (this.validateGeometryData(data)) {
                     const type = data.data_type;
                     const topic = data.topic;
@@ -279,7 +387,7 @@ class WebSocketManager {
                     if (type === "Polygon") {
                         geometry = this.renderer.drawPolygon(data.points, color, topic);
                     } else if (type === "Point2d") {
-                        geometry = this.renderer.drawPoint(data.point, color, topic);
+                        geometry = this.renderer.drawPoint(data.point, color, topic, 5);
                     } else if (type === "LineString") {
                         geometry = this.renderer.drawLineString(data.points, color, topic);
                     }
@@ -290,11 +398,13 @@ class WebSocketManager {
                     }
 
                     // Manage geometry history (limit to 10 per topic)
-                    this.geometries[type][topic].push(geometry);
-                    if (this.geometries[type][topic].length > 10) {
-                        const oldGeometry = this.geometries[type][topic].shift();
-                        this.renderer.clear(type, topic);
-                    }
+                    // const num_keep = 100;
+                    // this.geometries[type][topic].push(geometry);
+                    // if (this.geometries[type][topic].length > num_keep) {
+                    //     const oldGeometry = this.geometries[type][topic].shift();
+                    //     this.renderer.clear(type, topic);
+                    // }
+                    
                 } else {
                     Logger.warn("Invalid geometry data received");
                 }
