@@ -67,15 +67,14 @@ class ZMQWebSocketRelay:
 
 
                         if message is not None:       
-                            # FIXME: for now, JS client can handle only polygon data
-                            if topic == "polygon":
-                                websocket_message = json.dumps(message)
-                                
-                                # send message to all clients connected
-                                await asyncio.gather(
-                                    *[client.send(websocket_message) for client in self.clients]
-                                )
+                            websocket_message = json.dumps(message)
+                            
+                            # send message to all clients connected
+                            await asyncio.gather(
+                                *[client.send(websocket_message) for client in self.clients]
+                            )
 
+    
                 # Yield control to allow other async operations
                 await asyncio.sleep(0)
                     
@@ -114,10 +113,12 @@ class ZMQWebSocketRelay:
         await message_task
 
 
+
 def main():
     relay = ZMQWebSocketRelay()
-    relay.add_subscriber(topic_name="polygon")
-    relay.add_subscriber(topic_name="message")
+    # relay.add_subscriber(topic_name="polygon")
+    relay.add_subscriber(topic_name="point")
+    relay.add_subscriber(topic_name="linestring")
     
     try:
         asyncio.run(relay.start_server())
