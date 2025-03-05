@@ -12,4 +12,8 @@ Run relay server
 ```
 python zmq_relay_server.py
 ```
-and then open `index.html`
+
+Run http server
+```
+python -m http.server 8000
+```
