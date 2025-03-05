@@ -1,19 +1,25 @@
-Python3.12
+# Cviz 
+
+https://github.com/user-attachments/assets/c6f3035d-b04b-4908-bbc8-ee11873b7e14
+
 
 ```
-pip install zmq json numpy
+pip install zmq json numpy 
 ```
 
 Run simulator (random geometry publisher)
 ```
-python polygon_publisher.py
+python example/polygon_publisher.py
 ```
 Run relay server 
 ```
-python zmq_relay_server.py
+python example/cviz_server.py
 ```
 
-Run http server
+Run HTTP server
 ```
-python -m http.server 8000
+python -m http.server 8000 --directory web
 ```
+
+Visit `localhost:8000`
+
