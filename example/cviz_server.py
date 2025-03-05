@@ -1,5 +1,8 @@
 import asyncio
 import logging
+
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from libs.zmq_relay_server import ZMQWebSocketRelay
 
 def main():

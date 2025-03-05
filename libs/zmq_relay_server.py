@@ -115,8 +115,6 @@ class ZMQWebSocketRelay:
             await subscribe_task
         await message_task
 
-
-
 def main():
     relay = ZMQWebSocketRelay()
     relay.add_subscriber(topic_name="polygon")

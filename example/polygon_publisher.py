@@ -5,8 +5,11 @@ import time
 import random
 import logging
 
-from ..libs.publisher import Publisher
-from ..example.kinematic_model import KinematicBicycleModel
+
+import os, sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from libs.publisher import Publisher
+from kinematic_model import KinematicBicycleModel
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -116,7 +119,7 @@ def main():
             }
 
             # push the car's trajectory
-            trajectory.append({'x': x, 'y': y})
+            trajectory.append({'x': float(x), 'y': float(y)})
             if len(trajectory) > 100:
                 trajectory.pop(0)
             linestring_data = {'points': trajectory}
@@ -126,9 +129,11 @@ def main():
             point_pub.publish(point_data)
             line_pub.publish(linestring_data)
             
-            logging.debug(f"Published: Polygon: {polygon_data}, Point: {point_data}, LineString: {linestring_data}")
+            logging.debug(f"Published: Polygon: {polygon_data}")
+            logging.debug(f"Published: Point: {point_data}")
+            # logging.debug(f"Published: LineString: {linestring_data}")
             
-            time.sleep(1./24.)
+            time.sleep(1./60.)
             sim_step += 1
             
     except KeyboardInterrupt:
