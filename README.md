@@ -5,6 +5,7 @@ https://github.com/user-attachments/assets/c6f3035d-b04b-4908-bbc8-ee11873b7e14
 
 
 ## Demo
+tested with Python3.12
 ```bash
 pip install zmq json numpy 
 npm install pixi.js
