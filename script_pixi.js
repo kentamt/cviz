@@ -370,7 +370,7 @@ class WebSocketManager {
 
                 // console.log('Received data:', data);
 
-                if (this.validateGeometryData(data)) {
+                if (true){　// this.validateGeometryData(data)) {
                     const type = data.data_type;
                     const topic = data.topic;
                     
@@ -387,7 +387,7 @@ class WebSocketManager {
                     if (type === "Polygon") {
                         geometry = this.renderer.drawPolygon(data.points, color, topic);
                     } else if (type === "Point2d") {
-                        geometry = this.renderer.drawPoint(data.point, color, topic, 5);
+                        geometry = this.renderer.drawPoint(data.point, color, topic, 2);
                     } else if (type === "LineString") {
                         geometry = this.renderer.drawLineString(data.points, color, topic);
                     }
@@ -397,13 +397,21 @@ class WebSocketManager {
                         this.renderer.addGeometry(type, geometry, topic);
                     }
 
-                    // Manage geometry history (limit to 10 per topic)
-                    // const num_keep = 100;
-                    // this.geometries[type][topic].push(geometry);
-                    // if (this.geometries[type][topic].length > num_keep) {
-                    //     const oldGeometry = this.geometries[type][topic].shift();
-                    //     this.renderer.clear(type, topic);
-                    // }
+                    // Manage geometry history 
+                    // Keep latest n_keep geometries
+                    // we have different n_keep for each type
+                    const n_keep_container = {
+                        Polygon: 1,
+                        Point2d: 100,
+                        LineString: 10
+                    };
+                    this.geometries[type][topic].push(geometry);
+                    const n_keep = n_keep_container[type];                      
+                    if (this.geometries[type][topic].length > n_keep) {
+                        const oldGeometry = this.geometries[type][topic].shift();
+                        this.renderer.geometryContainers[type].removeChild(oldGeometry);
+                    }                    
+
                     
                 } else {
                     Logger.warn("Invalid geometry data received");

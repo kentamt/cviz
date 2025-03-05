@@ -86,19 +86,28 @@ def main():
     point_pub = Publisher(topic_name="point", data_type='Point2d')
     line_pub = Publisher(topic_name="linestring", data_type='LineString')
 
-    model = KinematicBicycleModel(x=300, y=300, v=20)
+    model = KinematicBicycleModel(x=400, y=100, v=100)
     acceleration = 0.0 
-    steer_ang = math.radians(10.0)
-
+    steer_ang = math.radians(0.0)
 
     time.sleep(1)
     
     print("🚀 ZMQ Geometric Simulator Started")
-
+    sim_step = 0
+    trajectory = []
     try:
         while True:
-            
+
+            # init the position 
+            # if sim_step > 300:
+            #     model = KinematicBicycleModel(x=400, y=100, v=100)
+            #     acceleration = 0.0 
+            #     steer_ang = math.radians(0.0)
+            #     sim_step = 0
+
             # evolve the model
+            steer_ang = math.radians(2.0 * math.sin(0.1 * sim_step)**2)
+            acceleration = random.uniform(-1, 1)
             model.update(acceleration, steer_ang)
             state = model.get_state()
             x, y, yaw, v = state
@@ -115,22 +124,29 @@ def main():
             
             # Publish Point
             point_data = {
-                'point': generate_point()
+                'point': generate_point(center_x=x, center_y=y)
             }
             point_pub.publish(point_data)
             
             # Publish LineString
+            # linestring_data = {
+            #     'points': generate_linestring()
+            # }
+            
+            # push the car's trajectory
+            trajectory.append({'x': x, 'y': y})
+            if len(trajectory) > 100:
+                trajectory.pop(0)
             linestring_data = {
-                'points': generate_linestring()
+                'points': trajectory
             }
             line_pub.publish(linestring_data)
             
             
             logging.debug(f"Published: Polygon: {polygon_data}, Point: {point_data}, LineString: {linestring_data}")
             
-            steer_ang = math.radians(random.uniform(-30, 30))
-            
             time.sleep(1./24.)
+            sim_step += 1
             # time.sleep(1./10.)
             
 

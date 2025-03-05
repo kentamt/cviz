@@ -70,9 +70,12 @@ class ZMQWebSocketRelay:
                             websocket_message = json.dumps(message)
                             
                             # send message to all clients connected
-                            await asyncio.gather(
-                                *[client.send(websocket_message) for client in self.clients]
-                            )
+                            # await asyncio.gather(
+                            #     *[client.send(websocket_message) for client in self.clients]
+                            # )
+                            for client in self.clients:
+                                await client.send(websocket_message)
+                                
 
     
                 # Yield control to allow other async operations
@@ -117,8 +120,8 @@ class ZMQWebSocketRelay:
 def main():
     relay = ZMQWebSocketRelay()
     relay.add_subscriber(topic_name="polygon")
-    # relay.add_subscriber(topic_name="point")
-    # relay.add_subscriber(topic_name="linestring")
+    relay.add_subscriber(topic_name="point")
+    relay.add_subscriber(topic_name="linestring")
     
     try:
         asyncio.run(relay.start_server())
