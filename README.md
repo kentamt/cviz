@@ -12,8 +12,8 @@ Web-based visualisation tool for Python
   </tr>
 </table>
 
-## Support format
-- [x] Point2D
+## Data type
+- [x] Point2Da
 - [ ] PointCloud2D
 - [x] Polygon
 - [x] PolygonVector
@@ -73,4 +73,11 @@ def main():
     except KeyboardInterrupt:
         logging.info("Server stopped")
 ```
+
+## TODO
+- [ ] decay time
+- [ ] colour
+- [ ] add GUI to control topics
+- [ ] zoom and pan
+- [ ] lon, lat, map
 
