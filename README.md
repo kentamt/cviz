@@ -1,8 +1,21 @@
 # Cviz 
 Visualisation tool for Python simulator.
 
+<table>
+  <tr>
+    <td>
+      <video src="https://github.com/user-attachments/assets/0bbb7911-3b68-49cb-8aa0-923fb4b55a2e" controls width="100%"></video>
+    </td>
+    <td>
+      <video src="https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573" controls width="100%"></video>
+    </td>
+  </tr>
+</table>
 
-https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573
+
+
+
+
 
 ## Demo
 tested with Python3.12
