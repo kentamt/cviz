@@ -28,7 +28,8 @@ class Publisher:
         """Publish a message to the ZMQ socket."""
         # TODO: message should be a class object. e.g. Polygon, Message
         
-        message['data_type'] = self.data_type        
+        message['data_type'] = self.data_type
+        message['topic'] = self.topic      
         message = json.dumps(message)
 
         

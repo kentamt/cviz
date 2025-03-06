@@ -7,9 +7,13 @@ from libs.zmq_relay_server import ZMQWebSocketRelay
 
 def main():
     relay = ZMQWebSocketRelay()
-    relay.add_subscriber(topic_name="polygon")
+    relay.add_subscriber(topic_name="polygon_1")
+    relay.add_subscriber(topic_name="polygon_2")
     relay.add_subscriber(topic_name="point")
-    relay.add_subscriber(topic_name="linestring")
+    relay.add_subscriber(topic_name="linestring_1")
+    relay.add_subscriber(topic_name="linestring_2")
+    relay.add_subscriber(topic_name="text_1")
+    relay.add_subscriber(topic_name="text_2")
     
     try:
         asyncio.run(relay.start_server())

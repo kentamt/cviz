@@ -74,6 +74,7 @@ class GeometryRenderer {
 
         // Containers for different geometry types
         this.geometryContainers = {
+            Text: new PIXI.Container(),
             Polygon: new PIXI.Container(),
             Point2d: new PIXI.Container(),
             LineString: new PIXI.Container()
@@ -105,6 +106,22 @@ class GeometryRenderer {
         return TOPIC_STYLES.default[dataType] || 0xffffff;
     }
 
+    drawText(text, position, color, topic) {
+        const style = new PIXI.TextStyle({
+            fill: color,
+            fontSize: 12
+        });
+
+        const textObj = new PIXI.Text(text, style);
+        textObj.x = position.x;
+        textObj.y = position.y;
+
+        // Add metadata for potential interaction
+        textObj.topic = topic;
+
+        return textObj;
+    }
+    
     drawPolygon(points, color, topic) {
         if (points.length < 3) return null;
 
@@ -237,6 +254,7 @@ class WebSocketManager {
         this.ws = null;
         this.reconnectAttempts = 0;
         this.geometries = {
+            Text: {},
             Polygon: {},
             Point2d: {},
             LineString: {}
@@ -247,9 +265,34 @@ class WebSocketManager {
 
     validateGeometryData(data) {
         // Enhanced logging for data validation
-        Logger.debug('Received data:', JSON.stringify(data));
+        Logger.log('Received data:', JSON.stringify(data));
 
         const validTypes = {
+            Text: (data) => {
+                const isValid = (
+                    data && 
+                    data.data_type === "Text" && 
+                    // data.topic &&
+                    data.text //  && 
+                    // typeof data.text === 'string'//  && 
+                    // data.position && 
+                    // typeof data.position.x === 'number' && 
+                    // typeof data.position.y === 'number'
+                );
+                
+                if (!isValid) {
+                    Logger.warn('Invalid Text data:', {
+                        hasDataType: data?.data_type === "Text",
+                        hasTopic: !!data?.topic,
+                        textValid: typeof data?.text === 'string',
+                        positionValid: data?.position && 
+                            typeof data?.position.x === 'number' && 
+                            typeof data?.position.y === 'number'
+                    });
+                }
+
+                return isValid;
+            },
             Polygon: (data) => {
                 const isValid = (
                     data && 
@@ -368,11 +411,12 @@ class WebSocketManager {
             try {
                 const data = JSON.parse(event.data);
 
-                // console.log('Received data:', data);
+                console.log('Received data:', data);
 
-                if (true){　// this.validateGeometryData(data)) {
+                if (this.validateGeometryData(data)) {
                     const type = data.data_type;
                     const topic = data.topic;
+                    Logger.debug(`Received ${type} data for topic: ${topic}`);
                     
                     // Initialize topic array if not exists
                     if (!this.geometries[type][topic]) {
@@ -390,6 +434,8 @@ class WebSocketManager {
                         geometry = this.renderer.drawPoint(data.point, color, topic, 2);
                     } else if (type === "LineString") {
                         geometry = this.renderer.drawLineString(data.points, color, topic);
+                    } else if (type === "Text") {
+                        geometry = this.renderer.drawText(data.text, data.position, color, topic);
                     }
 
                     // Add geometry to renderer
@@ -401,6 +447,7 @@ class WebSocketManager {
                     // Keep latest n_keep geometries
                     // we have different n_keep for each type
                     const n_keep_container = {
+                        Text: 1,                        
                         Polygon: 1,
                         Point2d: 100,
                         LineString: 10

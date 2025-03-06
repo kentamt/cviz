@@ -36,4 +36,4 @@ class KinematicBicycleModel:
 
     def get_state(self):
         """Return the current state."""
-        return self.state
+        return self.state.copy()

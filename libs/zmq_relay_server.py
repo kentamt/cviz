@@ -7,7 +7,7 @@ from libs.subscriber import Subscriber
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s: %(message)s'
 )
 
@@ -63,7 +63,7 @@ class ZMQWebSocketRelay:
 
                         topic = _sub.topic
                         message = _sub.get_message()
-                        logging.debug(f"Message: {message}, Topic: {topic}")
+                        logging.debug(f"Topic: {topic}, Message: {message}")
 
 
                         if message is not None:       

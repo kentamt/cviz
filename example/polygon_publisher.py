@@ -86,52 +86,80 @@ def generate_linestring(num_points=5, center_x=300, center_y=300, radius=100):
 def main():
     
     # Create publishers
-    polygon_pub = Publisher(topic_name="polygon", data_type='Polygon')
+    polygon_pub_1 = Publisher(topic_name="polygon_1", data_type='Polygon')
+    polygon_pub_2 = Publisher(topic_name="polygon_2", data_type='Polygon')
     point_pub = Publisher(topic_name="point", data_type='Point2d')
-    line_pub = Publisher(topic_name="linestring", data_type='LineString')
+    line_pub_1 = Publisher(topic_name="linestring_1", data_type='LineString')
+    line_pub_2 = Publisher(topic_name="linestring_2", data_type='LineString')
+    text_pub_1 = Publisher(topic_name="text_1", data_type='Text')
+    text_pub_2 = Publisher(topic_name="text_2", data_type='Text')
 
-    model = KinematicBicycleModel(x=400, y=100, v=100)
+    model_1 = KinematicBicycleModel(x=400, y=100, v=30)
+    model_2 = KinematicBicycleModel(x=600, y=500, v=10, yaw=math.radians(125))
     acceleration = 0.0 
-    steer_ang = math.radians(0.0)
 
     time.sleep(1)
     
     print("🚀 Geometric Simulator Started")
     sim_step = 0
-    trajectory = []
+    trajectory_1, trajectory_2 = [], []
     try:
         while True:
 
             # evolve the model
-            steer_ang = math.radians(2.0 * math.sin(0.1 * sim_step)**2)
-            acceleration = random.uniform(-1, 1)
-            model.update(acceleration, steer_ang)
-            state = model.get_state()
-            x, y, yaw, v = state
+            steer_ang = math.radians(2.0)
+            model_1.update(acceleration, steer_ang)
+            state = model_1.get_state()
+            x1, y1, yaw1, v1 = state
+            polygon_data_1 = {            
+                'points': generate_rectangle(center_x=x1, center_y=y1, w=10, h=5,yaw=yaw1)
+            }
 
-            # Generate data for visualisation    
-            polygon_data = {
-                'points': generate_rectangle(center_x=x, center_y=y, w=10, h=5,yaw=yaw)
+            steer_ang = math.radians(-2.5)
+            model_2.update(acceleration, steer_ang)
+            state = model_2.get_state()
+            x2, y2, yaw2, v2 = state
+            polygon_data_2 = {
+                'points': generate_rectangle(center_x=x2, center_y=y2, w=20, h=10,yaw=yaw2)
             }
 
             point_data = {
-                'point': generate_point(center_x=x, center_y=y)
+                'point': generate_point(center_x=x1, center_y=y1)
+            }
+
+            text_data_1 = {
+                'text': f"v1: {sim_step}: yaw: {yaw1:0.2f}, v: {v1}",
+                'position': {'x': x1+10, 'y': y1+10}
+            }
+            text_data_2 = {
+                'text': f"v2: {sim_step}: yaw: {yaw2:0.2f}, v: {v2}",
+                'position': {'x': x2+10, 'y': y2+10}
             }
 
             # push the car's trajectory
-            trajectory.append({'x': float(x), 'y': float(y)})
-            if len(trajectory) > 100:
-                trajectory.pop(0)
-            linestring_data = {'points': trajectory}
+            trajectory_1.append({'x': float(x1), 'y': float(y1)})
+            if len(trajectory_1) > 100:
+                trajectory_1.pop(0)
+            linestring_data_1 = {'points': trajectory_1}
+
+            trajectory_2.append({'x': float(x2), 'y': float(y2)})
+            if len(trajectory_2) > 100:
+                trajectory_2.pop(0)
+            linestring_data_2 = {'points': trajectory_2}
 
             # Publish data for visualisation        
-            polygon_pub.publish(polygon_data)
+            polygon_pub_1.publish(polygon_data_1)
+            polygon_pub_2.publish(polygon_data_2)
             point_pub.publish(point_data)
-            line_pub.publish(linestring_data)
+            line_pub_1.publish(linestring_data_1)
+            line_pub_2.publish(linestring_data_2)
+            text_pub_1.publish(text_data_1)
+            text_pub_2.publish(text_data_2)
             
-            logging.debug(f"Published: Polygon: {polygon_data}")
-            logging.debug(f"Published: Point: {point_data}")
+            # logging.debug(f"Published: Polygon: {polygon_data}")
+            # logging.debug(f"Published: Point: {point_data}")
             # logging.debug(f"Published: LineString: {linestring_data}")
+            logging.debug(f"Published: Text: {text_data_1}")
             
             time.sleep(1./60.)
             sim_step += 1
