@@ -11,7 +11,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s: %(message)s'
 )
 
-class ZMQWebSocketRelay:
+class CvizServer:
     """
     Relay ZMQ messages to WebSocket clients. 
 
@@ -116,13 +116,13 @@ class ZMQWebSocketRelay:
         await message_task
 
 def main():
-    relay = ZMQWebSocketRelay()
-    relay.add_subscriber(topic_name="polygon")
-    relay.add_subscriber(topic_name="point")
-    relay.add_subscriber(topic_name="linestring")
+    cviz = CvizServer()
+    cviz.add_subscriber(topic_name="polygon")
+    cviz.add_subscriber(topic_name="point")
+    cviz.add_subscriber(topic_name="linestring")
     
     try:
-        asyncio.run(relay.start_server())
+        asyncio.run(cviz.start_server())
     except KeyboardInterrupt:
         logging.info("Server stopped")
 
