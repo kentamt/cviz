@@ -18,6 +18,7 @@ const TOPIC_STYLES = {
     // Default fallback colors
     default: {
         Polygon: 0x00ff00,      // Bright Green
+        PolygonVector: 0xff00ff, // Magenta
         Point2d: 0x00ffff,       // Cyan
         LineString: 0xff0000     // Bright Red
     },
@@ -76,9 +77,11 @@ class GeometryRenderer {
         this.geometryContainers = {
             Text: new PIXI.Container(),
             Polygon: new PIXI.Container(),
+            PolygonVector: new PIXI.Container(),
             Point2d: new PIXI.Container(),
             LineString: new PIXI.Container()
         };
+
 
         // Add containers to the stage
         Object.values(this.geometryContainers).forEach(container => {
@@ -121,12 +124,36 @@ class GeometryRenderer {
 
         return textObj;
     }
+
+    drawPolygonVector(polygons, color, topic) {
+        const alpha = 0.2;
+        const graphics = new PIXI.Graphics();
+        for (const polygon of polygons) {
+            graphics.beginFill(color, alpha);
+            graphics.lineStyle(2, color, 1);
+    
+            // Move to first point
+            graphics.moveTo(polygon.points[0].x, polygon.points[0].y);
+
+            // Draw lines to subsequent points
+            for (let i = 1; i < polygon.points.length; i++) {
+                graphics.lineTo(polygon.points[i].x, polygon.points[i].y);
+            }
+    
+            // Close the polygon
+            graphics.closePath();
+            graphics.endFill();
+        }
+
+        return graphics;
+    }
     
     drawPolygon(points, color, topic) {
         if (points.length < 3) return null;
 
         const alpha = 0.2;
         const graphics = new PIXI.Graphics();
+
         graphics.beginFill(color, alpha);
         graphics.lineStyle(2, color, 1);
 
@@ -256,6 +283,7 @@ class WebSocketManager {
         this.geometries = {
             Text: {},
             Polygon: {},
+            PolygonVector: {},
             Point2d: {},
             LineString: {}
         };
@@ -265,7 +293,7 @@ class WebSocketManager {
 
     validateGeometryData(data) {
         // Enhanced logging for data validation
-        Logger.log('Received data:', JSON.stringify(data));
+        Logger.debug('Received data:', JSON.stringify(data));
 
         const validTypes = {
             Text: (data) => {
@@ -315,6 +343,42 @@ class WebSocketManager {
                         pointsArray: Array.isArray(data?.points),
                         pointsLength: data?.points?.length,
                         pointsValid: data?.points?.every(point => 
+                            point && 
+                            typeof point.x === 'number' && 
+                            typeof point.y === 'number'
+                        )
+                    });
+                }
+                
+                return isValid;
+            },
+            PolygonVector: (data) => {
+
+                console.log(data);
+
+                const isValid = (
+                    data && 
+                    data.data_type === "PolygonVector" && 
+                    // data.topic &&
+                    Array.isArray(data.polygons) && 
+                    // Array.isArray(data.polygons.points) &&
+                    data.polygons.points.length > 0 && 
+                    data.polygons.points.every(point => 
+                        point && 
+                        typeof point.x === 'number' && 
+                        typeof point.y === 'number'
+                    )
+                );
+                
+                if (!isValid) {
+                    Logger.warn('Invalid PolygonVector data:', {
+                        hasDataType: data?.data_type === "PolygonVector",
+                        hasTopic: !!data?.topic,
+                        polygonsArray: Array.isArray(data?.polygons),
+                        pointsArray: Array.isArray(data?.polygons?.points),
+                        polygonLength: data?.polygons?.length,
+                        pointsLength: data?.polygons?.points?.length,
+                        pointsValid: data?.polygons?.points?.every(point => 
                             point && 
                             typeof point.x === 'number' && 
                             typeof point.y === 'number'
@@ -411,9 +475,7 @@ class WebSocketManager {
             try {
                 const data = JSON.parse(event.data);
 
-                console.log('Received data:', data);
-
-                if (this.validateGeometryData(data)) {
+                if (true) {  // this.validateGeometryData(data)) {
                     const type = data.data_type;
                     const topic = data.topic;
                     Logger.debug(`Received ${type} data for topic: ${topic}`);
@@ -430,6 +492,8 @@ class WebSocketManager {
                     let geometry;
                     if (type === "Polygon") {
                         geometry = this.renderer.drawPolygon(data.points, color, topic);
+                    }else if (type === "PolygonVector") {
+                        geometry = this.renderer.drawPolygonVector(data.polygons, color, topic);
                     } else if (type === "Point2d") {
                         geometry = this.renderer.drawPoint(data.point, color, topic, 2);
                     } else if (type === "LineString") {
@@ -449,6 +513,7 @@ class WebSocketManager {
                     const n_keep_container = {
                         Text: 1,                        
                         Polygon: 1,
+                        PolygonVector: 1,
                         Point2d: 100,
                         LineString: 10
                     };

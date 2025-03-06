@@ -36,7 +36,7 @@ class Publisher:
         zmq_socket.send_multipart([self.topic.encode('utf-8'), 
                                         message.encode('utf-8')])
         
-        print(f"Sent {self.topic}")
+        # print(f"Sent {self.topic}")
         
         
 # test
