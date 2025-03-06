@@ -1,5 +1,7 @@
 # Cviz 
-Visualisation tool for Python simulator.
+Web-based visualisation tool for Python simulator.
+
+You can publish your data to visualise in your Python code.
 
 <table>
   <tr>
@@ -12,10 +14,20 @@ Visualisation tool for Python simulator.
   </tr>
 </table>
 
-
-
-
-
+## Support format
+- [x] Point2D
+- [ ] PointCloud2D
+- [x] Polygon
+- [x] PolygonVector
+- [x] LineString
+- [ ] LineStringVector
+- [x] Text
+- [ ] TextVector
+- [ ] Arrow
+- [ ] ArrowVector
+- [ ] SVG
+- [ ] SVGVector
+- [ ] GridMap
 
 ## Demo
 tested with Python3.12
