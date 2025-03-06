@@ -1,7 +1,5 @@
 # Cviz 
-Web-based visualisation tool for Python simulator.
-
-You can publish your data to visualise in your Python code.
+Web-based visualisation tool for Python
 
 <table>
   <tr>
