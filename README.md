@@ -1,8 +1,8 @@
 # Cviz 
-Visualisation tool for python simulator.
+Visualisation tool for Python simulator.
 
-https://github.com/user-attachments/assets/c6f3035d-b04b-4908-bbc8-ee11873b7e14
 
+https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573
 
 ## Demo
 tested with Python3.12
