@@ -40,13 +40,13 @@ polygon_pub.publish(data)
 In Cviz server, add the topic you want to visualise:
 ```python
 def main():
-    relay = ZMQWebSocketRelay()
-    relay.add_subscriber(topic_name="polygon")
-    # relay.add_subscriber(topic_name="point")
-    # relay.add_subscriber(topic_name="linestring")
+    cviz = CvizServer()
+    cviz.add_subscriber(topic_name="polygon")
+    # cviz.add_subscriber(topic_name="point")
+    # cviz.add_subscriber(topic_name="linestring")
     
     try:
-        asyncio.run(relay.start_server())
+        asyncio.run(cviz.start_server())
     except KeyboardInterrupt:
         logging.info("Server stopped")
 ```
