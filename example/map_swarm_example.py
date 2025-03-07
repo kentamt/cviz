@@ -97,7 +97,7 @@ def main():
         x = random.uniform(utm_x - x_min, utm_x + x_max)
         y = random.uniform(utm_y - y_min, utm_y + y_max)
         yaw = random.uniform(0, 2 * math.pi)
-        models.append(KinematicBicycleModel(x=x, y=y, v=100, yaw=yaw))
+        models.append(KinematicBicycleModel(x=x, y=y, v=10, yaw=yaw))
 
     time.sleep(1)
     

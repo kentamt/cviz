@@ -145,6 +145,8 @@ export class WebSocketManager {
 
         // Manage geometry history
         this.geometries[type][topic].push(geometry);
+
+        // the number of geometries to keep in history
         const historyLimit = this.options.historyLimits[type];
         
         if (this.geometries[type][topic].length > historyLimit) {
@@ -154,6 +156,19 @@ export class WebSocketManager {
                 oldGeometry.destroy({ children: true });
             }
         }
+
+        // life time of the geometry
+        // TODO: set life_time in the data, e.g. data.life_time = 1
+        const lifeTime = 1
+        if (lifeTime) {
+            setTimeout(() => {
+                if (geometry.destroyed) {return;}
+                this.renderer.geometryContainers[type].removeChild(geometry);
+                geometry.destroy({ children: true });
+                this.geometries[type][topic].shift();
+            }, lifeTime * 1000);
+        }
+
     }
 
     validateGeometryData(data) {

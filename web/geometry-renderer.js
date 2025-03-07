@@ -69,6 +69,9 @@ export class GeometryRenderer {
             throw error;
         }
 
+        // Create tooltip element
+        const tooltip = document.getElementById('tooltip');
+
         // Append Pixi view to the container
         this.container.appendChild(this.app.view);
 
@@ -159,6 +162,13 @@ export class GeometryRenderer {
                 // Close the polygon
                 graphics.closePath();
                 graphics.endFill();
+
+                // interactive
+                graphics.interactive = true;
+                graphics.cursor = 'pointer';
+                graphics.on('mouseover', () => {
+                    graphics.alpha = 0.5;
+                });
             }
         }
 
@@ -167,6 +177,7 @@ export class GeometryRenderer {
         return graphics;
     }
     
+
     drawPolygon(points, color, topic) {
         if (points.length < 3) return null;
 
@@ -192,7 +203,7 @@ export class GeometryRenderer {
 
         // Add metadata for potential interaction
         graphics.topic = topic;
-
+        
         return graphics;
     }
 
