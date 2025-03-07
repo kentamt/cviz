@@ -1,3 +1,4 @@
+
 import * as PIXI from 'https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.mjs';
 
 // Pixi.js setup

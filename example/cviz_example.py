@@ -15,11 +15,7 @@ def main():
     # cviz.add_subscriber(topic_name="text_1")
     # cviz.add_subscriber(topic_name="text_2")
 
-    # num_agents = 10
-    # for i in range(num_agents):
-    #     cviz.add_subscriber(topic_name=f"polygon_{i}")
-    #     cviz.add_subscriber(topic_name=f"text_{i}")
-
+    # swarm example
     cviz.add_subscriber(topic_name="polygon_vector")
 
     try:
