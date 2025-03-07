@@ -9,8 +9,12 @@ Web-based visualisation tool for Python
     <td>
       <video src="https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573" controls width="100%"></video>
     </td>
+    <td>
+      <video src="https://github.com/user-attachments/assets/b4f2a60a-9b8b-45c7-940a-2ddea319c7fc" controls width="100%"></video>
+    </td>  
   </tr>
 </table>
+
 
 ## Data type
 - [x] Point2Da
