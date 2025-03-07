@@ -10,10 +10,15 @@ Web-based visualisation tool for Python
       <video src="https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573" controls width="100%"></video>
     </td>
     <td>
-      <video src="https://github.com/user-attachments/assets/b4f2a60a-9b8b-45c7-940a-2ddea319c7fc" controls width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/78cd4763-3d5e-4d8d-a868-a443a2e0aeea" controls width="100%"></video>
     </td>  
   </tr>
 </table>
+
+
+
+
+
 
 
 ## Data type
