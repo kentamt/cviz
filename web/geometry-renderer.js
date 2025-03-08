@@ -159,8 +159,6 @@ export class GeometryRenderer {
             if (polygon.points && polygon.points.length > 0) {
                 const firstPoint = this.transformCoordinates(polygon.points[0].x, polygon.points[0].y);
              
-                console.log(firstPoint)
-                
                 // Move to first point
                 graphics.moveTo(firstPoint.x, firstPoint.y);
     

@@ -144,30 +144,48 @@ export class CanvasRenderer {
     
     // Transform coordinates from model space to screen pixels
     transformCoordinates(_x, _y) {
-        // Calculate the scale factors
+        // Calculate the scale factor based on the smallest dimension to maintain aspect ratio
         const scaleX = this.width / this.viewport.width;
         const scaleY = this.height / this.viewport.height;
+        const scale = Math.min(scaleX, scaleY);
         
-        // Transform the coordinates
-        const screenX = (_x - this.viewport.x) * scaleX;
-        const screenY = (_y - this.viewport.y) * scaleY;
-        // const x = (_x - this.viewport.x) * scaleX;
-        // const y = (_y - this.viewport.y) * scaleY;
+        // Calculate the centered viewport
+        const viewportScreenWidth = this.viewport.width * scale;
+        const viewportScreenHeight = this.viewport.height * scale;
         
-        return { 'x': screenX, 'y': screenY};
+        // Calculate offsets to center the content
+        const offsetX = (this.width - viewportScreenWidth) / 2;
+        const offsetY = (this.height - viewportScreenHeight) / 2;
+        
+        // Transform the coordinates using uniform scale
+        const screenX = (_x - this.viewport.x) * scale + offsetX;
+        const screenY = (_y - this.viewport.y) * scale + offsetY;
+        
+        return { 'x': screenX, 'y': screenY };
     }
-    
+
     // Inverse transform from screen pixels to model space
     inverseTransform(screenX, screenY) {
+        // Calculate the scale factor based on the smallest dimension
         const scaleX = this.width / this.viewport.width;
         const scaleY = this.height / this.viewport.height;
+        const scale = Math.min(scaleX, scaleY);
         
-        const x = (screenX / scaleX) + this.viewport.x;
-        const y = (screenY / scaleY) + this.viewport.y;
+        // Calculate the centered viewport
+        const viewportScreenWidth = this.viewport.width * scale;
+        const viewportScreenHeight = this.viewport.height * scale;
+        
+        // Calculate offsets that were used to center the content
+        const offsetX = (this.width - viewportScreenWidth) / 2;
+        const offsetY = (this.height - viewportScreenHeight) / 2;
+        
+        // Transform back to model coordinates
+        const x = ((screenX - offsetX) / scale) + this.viewport.x;
+        const y = ((screenY - offsetY) / scale) + this.viewport.y;
         
         return { x, y };
     }
-    
+
     // Draw grid lines based on current viewport
     drawGrid() {
         if (!this.showGrid) return;
