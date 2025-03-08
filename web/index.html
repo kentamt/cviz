@@ -1,5 +1,5 @@
 <!-- map-app.html - For map-based application -->
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -32,13 +32,49 @@
 <body>
     <div id="map-container"></div>
     <div id="geometry-container"></div> 
-    <!-- <div id="tooltip">Tooltip Text</div>    -->
     <script type="module" src="map-app.js"></script>
 </body>
-</html>
+</html> -->
 
 
 <!-- canvas-app.html - For canvas-based application (no map) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas-Based Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #111;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #geometry-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="pixi-container"></div>
+    
+    <script type="module" src="canvas-app.js"></script>
+</body>
+</html>
+
 <!-- <!DOCTYPE html>
 <html lang="en">
 <head>

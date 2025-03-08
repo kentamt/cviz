@@ -34,7 +34,7 @@ export class GeometryRenderer {
             containerId = 'pixi-container',
             width = window.innerWidth,
             height = window.innerHeight,
-            backgroundColor = 0x555555,
+            backgroundColor = 0x111111,
             coordinateTransform = null // Function to transform coordinates if needed
         } = options;
 
@@ -68,6 +68,7 @@ export class GeometryRenderer {
             Logger.error('Failed to create PIXI Application:', error);
             throw error;
         }
+        this.app.stage.sortableChildren = true;
 
         // Create tooltip element
         const tooltip = document.getElementById('tooltip');
@@ -83,6 +84,14 @@ export class GeometryRenderer {
             Point2d: new PIXI.Container(),
             LineString: new PIXI.Container()
         };
+
+        // Set z-index for containers
+        this.geometryContainers.Text.zIndex = 100;
+        this.geometryContainers.Polygon.zIndex = 90;
+        this.geometryContainers.PolygonVector.zIndex = 8000;
+        this.geometryContainers.Point2d.zIndex = 70;
+        this.geometryContainers.LineString.zIndex = 60;
+
 
         // Add containers to the stage
         Object.values(this.geometryContainers).forEach(container => {
@@ -123,7 +132,7 @@ export class GeometryRenderer {
 
     drawText(text, position, color, topic) {
         const transformedPos = this.transformCoordinates(position.x, position.y);
-        
+
         const style = new PIXI.TextStyle({
             fill: color,
             fontSize: 12
@@ -149,6 +158,8 @@ export class GeometryRenderer {
             
             if (polygon.points && polygon.points.length > 0) {
                 const firstPoint = this.transformCoordinates(polygon.points[0].x, polygon.points[0].y);
+             
+                console.log(firstPoint)
                 
                 // Move to first point
                 graphics.moveTo(firstPoint.x, firstPoint.y);
@@ -164,11 +175,11 @@ export class GeometryRenderer {
                 graphics.endFill();
 
                 // interactive
-                graphics.interactive = true;
-                graphics.cursor = 'pointer';
-                graphics.on('mouseover', () => {
-                    graphics.alpha = 0.5;
-                });
+                // graphics.interactive = true;
+                // graphics.cursor = 'pointer';
+                // graphics.on('mouseover', () => {
+                //     graphics.alpha = 0.5;
+                // });
             }
         }
 

@@ -44,7 +44,7 @@ export class WebSocketManager {
             const errorDiv = document.createElement('div');
             errorDiv.style.color = 'red';
             errorDiv.style.padding = '20px';
-            errorDiv.style.backgroundColor = '#ffeeee';
+            errorDiv.style.backgroundColor = '#ffee00';
             errorDiv.innerHTML = `
                 <h2>Renderer Initialization Failed</h2>
                 <p>There was an error setting up the graphics renderer:</p>
@@ -159,15 +159,15 @@ export class WebSocketManager {
 
         // life time of the geometry
         // TODO: set life_time in the data, e.g. data.life_time = 1
-        const lifeTime = 1
-        if (lifeTime) {
-            setTimeout(() => {
-                if (geometry.destroyed) {return;}
-                this.renderer.geometryContainers[type].removeChild(geometry);
-                geometry.destroy({ children: true });
-                this.geometries[type][topic].shift();
-            }, lifeTime * 1000);
-        }
+        // const lifeTime = 1
+        // if (lifeTime) {
+        //     setTimeout(() => {
+        //         if (geometry.destroyed) {return;}
+        //         this.renderer.geometryContainers[type].removeChild(geometry);
+        //         geometry.destroy({ children: true });
+        //         this.geometries[type][topic].shift();
+        //     }, lifeTime * 1000);
+        // }
 
     }
 

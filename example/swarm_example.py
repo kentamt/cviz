@@ -79,7 +79,7 @@ def main():
     
     num_agents = 300
     acceleration = 0.0 
-    x_min, x_max, y_min, y_max = 10, 800, 10, 800
+    x_min, x_max, y_min, y_max = -1000, 1000, -1000, 1000
     models = []
     for i in range(num_agents):
         x = random.uniform(x_min, x_max)

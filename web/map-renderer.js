@@ -79,7 +79,7 @@ export class MapRenderer {
         
         const x = geoPoint.x - centerPixel.x + this.app.renderer.width / 2;
         const y = geoPoint.y - centerPixel.y + this.app.renderer.height / 2;
-        
+
         return { x, y };
     }
     

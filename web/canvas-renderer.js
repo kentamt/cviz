@@ -49,20 +49,14 @@ export class CanvasRenderer {
             width: width,
             height: height,
             backgroundColor: backgroundColor,
-            backgroundAlpha: backgroundAlpha
         });
         this.container.appendChild(this.app.view);
         
         // Create containers
         this.gridContainer = new PIXI.Container();
-        this.gridContainer.zIndex = 0;
-        this.contentContainer = new PIXI.Container();
         this.debugContainer = new PIXI.Container(); // Container for debug elements
         this.app.stage.addChild(this.gridContainer);
-        this.app.stage.addChild(this.contentContainer);
         this.app.stage.addChild(this.debugContainer);
-        this.app.stage.sortableChildren = true;
-
 
         // Set up coordinate transform function for the renderer
         const transformFunction = (x, y) => {
@@ -82,7 +76,7 @@ export class CanvasRenderer {
         this.drawGrid();
         
         // Add a test point at (300, 300) to debug
-        this.addDebugPoint(300, 300, 0xff0000);
+        // this.addDebugPoint(300, 300, 0xff0000);
         
         // Set up interaction
         this.setupInteraction();
@@ -145,21 +139,22 @@ export class CanvasRenderer {
         text.y = screenPos.y - 10;
         this.debugContainer.addChild(text);
         
-        Logger.log(`Debug point added at model (${x}, ${y}) -> screen (${screenPos.x.toFixed(0)}, ${screenPos.y.toFixed(0)})`);
+        // Logger.log(`Debug point added at model (${x}, ${y}) -> screen (${screenPos.x.toFixed(0)}, ${screenPos.y.toFixed(0)})`);
     }
     
     // Transform coordinates from model space to screen pixels
-    transformCoordinates(x, y) {
+    transformCoordinates(_x, _y) {
         // Calculate the scale factors
-        // console.log(x, y);
         const scaleX = this.width / this.viewport.width;
         const scaleY = this.height / this.viewport.height;
         
         // Transform the coordinates
-        const screenX = (x - this.viewport.x) * scaleX;
-        const screenY = (y - this.viewport.y) * scaleY;
+        const screenX = (_x - this.viewport.x) * scaleX;
+        const screenY = (_y - this.viewport.y) * scaleY;
+        // const x = (_x - this.viewport.x) * scaleX;
+        // const y = (_y - this.viewport.y) * scaleY;
         
-        return { x: screenX, y: screenY };
+        return { 'x': screenX, 'y': screenY};
     }
     
     // Inverse transform from screen pixels to model space
@@ -180,7 +175,7 @@ export class CanvasRenderer {
         this.gridContainer.removeChildren();
         
         const graphics = new PIXI.Graphics();
-        graphics.lineStyle(1, 0x333333, 0.5);
+        graphics.lineStyle(1, 0x333333, 1.0);
         
         // Calculate grid start and end points
         const start = this.viewport;
@@ -235,14 +230,28 @@ export class CanvasRenderer {
         const origin = this.transformCoordinates(0, 0);
         if (origin.x >= 0 && origin.x <= this.width && 
             origin.y >= 0 && origin.y <= this.height) {
-            graphics.lineStyle(2, 0xff0000, 1);
-            graphics.drawCircle(origin.x, origin.y, 5);
+            graphics.beginFill(0x00fff0);
+            graphics.drawCircle(origin.x, origin.y, 3);
         }
+
+        // draw arrows
+        // x axis; red, y axis; green at origin
+        // the length is the same as the grid
+        const xEnd = this.transformCoordinates(this.gridSize/2, 0);
+        const yEnd = this.transformCoordinates(0, this.gridSize/2);
+        graphics.lineStyle(4, 0xff0000);
+        graphics.moveTo(origin.x, origin.y);
+        graphics.lineTo(xEnd.x, xEnd.y);
+        graphics.lineStyle(4, 0x00ff00);
+        graphics.moveTo(origin.x, origin.y);
+        graphics.lineTo(yEnd.x, yEnd.y);
+
+
         
         this.gridContainer.addChild(graphics);
         
         // Refresh our debug point if needed
-        this.addDebugPoint(300, 300, 0xff0000);
+        // this.addDebugPoint(300, 300, 0xff0000);
     }
     
     // Set up mouse and keyboard interaction
@@ -259,7 +268,7 @@ export class CanvasRenderer {
         this.app.view.addEventListener('mousemove', e => {
             // Show coordinates in model space for debugging
             const modelCoords = this.inverseTransform(e.clientX, e.clientY);
-            this.debugInfo.innerHTML += `<div>Mouse: screen(${e.clientX}, ${e.clientY}) → model(${modelCoords.x.toFixed(0)}, ${modelCoords.y.toFixed(0)})</div>`;
+            this.debugInfo.innerHTML = `<div>Mouse: screen(${e.clientX}, ${e.clientY}) → model(${modelCoords.x.toFixed(0)}, ${modelCoords.y.toFixed(0)})</div>`;
             
             if (!dragging) return;
 
@@ -406,14 +415,14 @@ export class CanvasRenderer {
     }
     
     // Add a custom shape to the canvas
-    addShape(shape) {
-        this.contentContainer.addChild(shape);
-    }
+    // addShape(shape) {
+    //     this.contentContainer.addChild(shape);
+    // }
     
     // Clear all content (not the grid)
-    clearContent() {
-        this.contentContainer.removeChildren();
-    }
+    // clearContent() {
+    //     this.contentContainer.removeChildren();
+    // }
     
     // Reset view to initial viewport
     resetView(viewport = { x: 0, y: 0, width: 1000, height: 1000 }) {
