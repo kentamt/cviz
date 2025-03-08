@@ -9,11 +9,24 @@ Web-based visualisation tool for Python
     <td>
       <video src="https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573" controls width="100%"></video>
     </td>
-    <td>
-      <video src="https://github.com/user-attachments/assets/78cd4763-3d5e-4d8d-a868-a443a2e0aeea" controls width="100%"></video>
-    </td>  
   </tr>
 </table>
+
+
+<table>
+  <tr>
+    <td>
+      <video src="https://github.com/user-attachments/assets/78cd4763-3d5e-4d8d-a868-a443a2e0aeea" controls width="100%"></video>
+    </td>
+    <td>
+      <video src="https://github.com/user-attachments/assets/e8c191e0-3ce3-415d-8374-5a6815bdeb25" controls width="100%"></video>
+    </td>
+  </tr>
+</table>
+
+
+
+
 
 
 
