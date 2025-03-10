@@ -145,11 +145,12 @@ export class GeometryRenderer {
             this.historyLimits[topic] = this.options.historyLimits[type];
         }
         
-        Logger.debug(`Processing ${type} data for topic: ${topic}`);
-        
         // Get color for the topic
-        const color = this.getTopicColor(topic, type);
-
+        let color = this.getTopicColor(topic, type);
+        if (data.color) {
+            color = parseInt(data.color, 16);
+        }
+        
         // Create geometry based on type
         let geometry;
         if (type === "Polygon") {
@@ -163,6 +164,7 @@ export class GeometryRenderer {
         } else if (type === "Text") {
             geometry = this.drawText(data.text, data.position, color, topic);
         }
+
 
         // Add geometry to renderer
         if (geometry) {
@@ -178,6 +180,7 @@ export class GeometryRenderer {
         }
 
         // Manage geometry history
+
         this.geometries[type][topic].push(geometry);
         this.geometryData[type][topic].push({data, color, topic});
         this.manageGeometryHistory(type, topic); 
@@ -245,7 +248,6 @@ export class GeometryRenderer {
 
     // Update the coordinate transform
     updateCoordinateTransform(transformFunction) {
-        console.log('Updating coordinate transform');
         this.coordinateTransform = transformFunction;
         this.redrawAllGeometries();
     }
@@ -290,7 +292,8 @@ export class GeometryRenderer {
                             geometry = this.drawPolygon(data.points, color, topic);
                             break;
                         case 'PolygonVector':
-                            geometry = this.drawPolygonVector(data.polygons, "#0000ff", topic);
+                            geometry = this.drawPolygonVector(data.polygons, color, topic);
+                            // geometry = this.drawPolygonVector(data.polygons, "#0000ff", topic);
                             break;
                         case 'Point2d':
                             geometry = this.drawPoint(data.point, color, topic, radius);
@@ -437,7 +440,6 @@ export class GeometryRenderer {
 
     // Clear geometries for a specific type or topic
     clear(type, topic) {
-        console.log('Clearing geometries');
         
         const container = this.geometryContainers[type];
         

@@ -76,6 +76,7 @@ def main():
     }
     """    
     polygon_vector_pub = Publisher(topic_name="polygon_vector", data_type='PolygonVector')
+    linestring_pub = Publisher(topic_name="boundary", data_type='LineString')
     
     num_agents = 100
     acceleration = 0.0 
@@ -87,9 +88,21 @@ def main():
         yaw = random.uniform(0, 2 * math.pi)
         models.append(KinematicBicycleModel(x=x, y=y, v=10, yaw=yaw))
 
-
-    time.sleep(1)
-    
+    # boundary data
+    boundary_data = {
+        'points': [
+            {'x': x_min, 'y': y_min},
+            {'x': x_max, 'y': y_min},
+            {'x': x_max, 'y': y_max},
+            {'x': x_min, 'y': y_max},
+            {'x': x_min, 'y': y_min}
+        ]
+    }
+    boundary_data['life_time'] = 0
+    boundary_data['history_limit'] = 1
+    boundary_data['color'] = '0x0055ff'
+    linestring_pub.publish(boundary_data)    
+        
     print("🚀 Geometric Simulator Started")
     sim_step = 0
     try:
@@ -102,7 +115,7 @@ def main():
 
                 # update the model
                 model = models[i]
-                model.update(acceleration, random.uniform(-0.5, 0.5))
+                model.update(acceleration, random.uniform(-0.2, 0.2))
                 state = model.get_state()
                 x, y, yaw, v = state
 
@@ -126,10 +139,14 @@ def main():
             polygon_vector_data = {'polygons': polygons}                 
             polygon_vector_data['life_time'] = 0
             polygon_vector_data['history_limit'] = 1
+            polygon_vector_data['color'] = '0x00ffff'
             polygon_vector_pub.publish(polygon_vector_data)
 
+
+
+
             logging.debug(f"Step: {sim_step}")
-            time.sleep(1./24.)
+            time.sleep(1./60.)
             sim_step += 1
             
     except KeyboardInterrupt:

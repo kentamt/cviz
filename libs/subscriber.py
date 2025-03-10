@@ -1,3 +1,4 @@
+import time 
 import zmq
 import json
 import asyncio
@@ -14,7 +15,7 @@ class Subscriber:
         self.zmq_socket = self.zmq_context.socket(zmq.SUB)
         self.zmq_socket.connect(zmq_endpoint)
         self.zmq_socket.setsockopt_string(zmq.SUBSCRIBE, topic_name)
-        
+        self.topic = topic_name
         self.received_messages = []
         
     def get_message(self):
@@ -31,15 +32,17 @@ class Subscriber:
         
         while True:
             try:
+
+                start = time.time()
+
                 # Non-blocking poll for messages
-                socks = dict(poller.poll(100))  # 100ms timeout
+                socks = dict(poller.poll(1))  # 1ms timeout
                 
                 if self.zmq_socket in socks and socks[self.zmq_socket] == zmq.POLLIN:
                     # Receive a multipart message: [topic, message]
                     topic, message = self.zmq_socket.recv_multipart()
                     topic = topic.decode('utf-8')
                     data = json.loads(message.decode('utf-8'))
-                    print(f"Received on {topic}")
                     
                     self.received_messages.append(data)
                     if len(self.received_messages) > 10:
@@ -47,7 +50,11 @@ class Subscriber:
                 
                 # Yield control to allow other async operations
                 await asyncio.sleep(0)
-            
+                
+                end = time.time()   
+                print(f"Subscriber {self.topic}: {end - start}")
+
+
             except zmq.Again:
                 # No message available, just continue
                 await asyncio.sleep(0)

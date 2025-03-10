@@ -17,6 +17,7 @@ def main():
 
     # swarm example
     cviz.add_subscriber(topic_name="polygon_vector")
+    cviz.add_subscriber(topic_name="boundary")
 
     try:
         asyncio.run(cviz.start_server())
