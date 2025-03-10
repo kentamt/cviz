@@ -87,7 +87,8 @@ class CvizServer:
             "127.0.0.1", 
             self.websocket_port,
             ping_interval=20,
-            ping_timeout=20
+            ping_timeout=20,
+            path="/ws"
         )
         
         logging.info(f"WebSocket server started on ws://127.0.0.1:{self.websocket_port}")
