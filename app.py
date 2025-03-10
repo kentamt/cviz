@@ -35,3 +35,6 @@ async def startup_event():
 def root():
     return {"message": "FastAPI is running, and scripts have been started"}
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
