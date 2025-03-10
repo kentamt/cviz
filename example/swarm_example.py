@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from libs.publisher import Publisher
 from kinematic_model import KinematicBicycleModel
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 
 def generate_rectangle(center_x=300, center_y=300, w=100, h=100, yaw=0):
@@ -101,9 +101,9 @@ def main():
     boundary_data['life_time'] = 0
     boundary_data['history_limit'] = 1
     boundary_data['color'] = '0x0055ff'
-    linestring_pub.publish(boundary_data)    
+    
+
         
-    print("🚀 Geometric Simulator Started")
     sim_step = 0
     try:
         while True:
@@ -140,10 +140,9 @@ def main():
             polygon_vector_data['life_time'] = 0
             polygon_vector_data['history_limit'] = 1
             polygon_vector_data['color'] = '0x00ffff'
+
             polygon_vector_pub.publish(polygon_vector_data)
-
-
-
+            linestring_pub.publish(boundary_data)    
 
             logging.debug(f"Step: {sim_step}")
             time.sleep(1./60.)

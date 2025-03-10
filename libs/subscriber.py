@@ -32,9 +32,6 @@ class Subscriber:
         
         while True:
             try:
-
-                start = time.time()
-
                 # Non-blocking poll for messages
                 socks = dict(poller.poll(1))  # 1ms timeout
                 
@@ -50,10 +47,6 @@ class Subscriber:
                 
                 # Yield control to allow other async operations
                 await asyncio.sleep(0)
-                
-                end = time.time()   
-                print(f"Subscriber {self.topic}: {end - start}")
-
 
             except zmq.Again:
                 # No message available, just continue
