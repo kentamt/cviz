@@ -180,15 +180,13 @@ export class GeometryRenderer {
         // Manage geometry history
         this.geometries[type][topic].push(geometry);
         this.geometryData[type][topic].push({data, color, topic});
-        this.manageGeometryHistory(type, topic);
-
+        this.manageGeometryHistory(type, topic); 
     }
 
     manageGeometryHistory(type, topic) {
         // the number of geometries to keep in history
-        const historyLimit = this.historyLimits[topic];
+        const historyLimit = this.historyLimits[topic] + 1; // FIXME: we need this to show geometry while interaction
 
-        // if (this.geometries[type][topic].length > historyLimit) {
         while (this.geometries[type][topic].length > historyLimit) {
 
             // remove the oldest geometry
@@ -204,6 +202,8 @@ export class GeometryRenderer {
         while (this.geometryData[type][topic].length > historyLimit) {
             this.geometryData[type][topic].shift();
         }
+
+
 
         // life time of the geometry
         // TODO: set life_time in the data, e.g. data.life_time = 1

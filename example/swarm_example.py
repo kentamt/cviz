@@ -125,7 +125,7 @@ def main():
             # polygon vector data                             
             polygon_vector_data = {'polygons': polygons}                 
             polygon_vector_data['life_time'] = 0
-            polygon_vector_data['history_limit'] = 100
+            polygon_vector_data['history_limit'] = 1
             polygon_vector_pub.publish(polygon_vector_data)
 
             logging.debug(f"Step: {sim_step}")
