@@ -42,23 +42,11 @@ Web-based visualisation tool for Python
 ## Demo
 tested with Python3.12
 ```bash
-pip install zmq json numpy 
-npm install pixi.js
+pip install -r requirements.txt
 ```
 
-Run simulator
-```bash
-python example/polygon_publisher.py
 ```
-
-Run relay server 
-```bash
-python example/cviz_server.py
-```
-
-Run HTTP server
-```bash
-python -m http.server 8000 --directory web
+uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
 Visit `localhost:8000`
