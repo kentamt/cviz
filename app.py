@@ -7,6 +7,9 @@ import threading
 
 app = FastAPI()
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="web"), name="static")
+# Serve the main application
 app.mount("/", StaticFiles(directory="web", html=True), name="web")
 
 SWARM_SCRIPT = Path("example/swarm_example.py")
@@ -31,10 +34,7 @@ async def startup_event():
     threading.Thread(target=run_script, args=(SWARM_SCRIPT,), daemon=True).start()
     print("🚀 Started Swarm Simulator", flush=True)
 
-@app.get("/")
-def root():
-    return {"message": "FastAPI is running, and scripts have been started"}
-
+# Dedicated health check endpoint
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}

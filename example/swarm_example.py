@@ -102,7 +102,7 @@ def main():
     boundary_data['history_limit'] = 1
     boundary_data['color'] = '0x0055ff'
     
-
+    log_interval = 60
         
     sim_step = 0
     try:
@@ -144,7 +144,9 @@ def main():
             polygon_vector_pub.publish(polygon_vector_data)
             linestring_pub.publish(boundary_data)    
 
-            logging.debug(f"Step: {sim_step}")
+            if sim_step % log_interval == 0:
+                logging.info(f"Step: {sim_step}")
+
             time.sleep(1./60.)
             sim_step += 1
             
