@@ -1,24 +1,28 @@
 import subprocess
 from pathlib import Path
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 import threading
-import uvicorn
 
 app = FastAPI()
-app.mount("/", StaticFiles(directory="web", html=True), name="weba")
 
-if __name__ == "__main__":
-    
-    SWARM_SCRIPT = Path("example/swarm_example.py")
-    CVIZ_SCRIPT = Path("example/cviz_example.py")
+app.mount("/", StaticFiles(directory="web", html=True), name="web")
 
-    # Start the cviz server
-    cviz_process = subprocess.Popen(["python", CVIZ_SCRIPT], shell=False)
+SWARM_SCRIPT = Path("example/swarm_example.py")
+CVIZ_SCRIPT = Path("example/cviz_example.py")
+
+def run_script(script_path: Path):
+        subprocess.Popen(["python", script_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+@app.on_event("startup")
+async def startup_event():
+    threading.Thread(target=run_script, args=(CVIZ_SCRIPT,)).start()
     print("🚀 Started Cviz Server")
 
-    # Start the swarm simulator
-    swarm_process = subprocess.Popen(["python", SWARM_SCRIPT], shell=False)
+    threading.Thread(target=run_script, args=(SWARM_SCRIPT,)).start()
     print("🚀 Started Swarm Simulator")
-    
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+@app.get("/")
+def root():
+    return {"message": "FastAPI is running, and scripts have been started"}
+
