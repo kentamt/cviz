@@ -70,11 +70,12 @@ export class GeometryRenderer {
         }
         this.app.stage.sortableChildren = true;
 
-        // Create tooltip element
-        const tooltip = document.getElementById('tooltip');
-
         // Append Pixi view to the container
         this.container.appendChild(this.app.view);
+
+        // For visualisation
+        this.historyLimits = {};
+        this.lifeTimes = {};
 
         // Containers for different geometry types
         this.geometryContainers = {
@@ -85,13 +86,31 @@ export class GeometryRenderer {
             LineString: new PIXI.Container()
         };
 
+        // Manage geometries for each topic
+        this.geometries = {
+            Text: {},
+            Polygon: {},
+            PolygonVector: {},
+            Point2d: {},
+            LineString: {}
+        };
+
+
+        // Storage for original geometry data
+        this.geometryData = {
+            Text: {},
+            Polygon: {},
+            PolygonVector: {},
+            Point2d: {},
+            LineString: {}
+        };
+
         // Set z-index for containers
         this.geometryContainers.Text.zIndex = 100;
         this.geometryContainers.Polygon.zIndex = 90;
-        this.geometryContainers.PolygonVector.zIndex = 8000;
+        this.geometryContainers.PolygonVector.zIndex = 100;
         this.geometryContainers.Point2d.zIndex = 70;
         this.geometryContainers.LineString.zIndex = 60;
-
 
         // Add containers to the stage
         Object.values(this.geometryContainers).forEach(container => {
@@ -105,12 +124,116 @@ export class GeometryRenderer {
         window.addEventListener('resize', () => this.resize());
     }
 
-    resize() {
+
+    processGeometryData(data) {
+
+        const type = data.data_type;
+        const topic = data.topic || 'default';
+
+        // Add life time to the geometry if there exists a life time for the topic
+        if (data.life_time) {
+            this.lifeTimes[topic] = data.life_time;
+        }else{
+            this.lifeTimes[topic] = 0;  // no life time limit
+        }
+
+        // Add history limit to the geometry if there exists a history limit for the topic
+        if (data.history_limit) {
+            this.historyLimits[topic] = data.history_limit;
+        }else{
+            // TODO: Implement this
+            this.historyLimits[topic] = this.options.historyLimits[type];
+        }
+        
+        Logger.debug(`Processing ${type} data for topic: ${topic}`);
+        
+        // Get color for the topic
+        const color = this.getTopicColor(topic, type);
+
+        // Create geometry based on type
+        let geometry;
+        if (type === "Polygon") {
+            geometry = this.drawPolygon(data.points, color, topic);
+        } else if (type === "PolygonVector") {
+            geometry = this.drawPolygonVector(data.polygons, color, topic);
+        } else if (type === "Point2d") {
+            geometry = this.drawPoint(data.point, color, topic, 2);
+        } else if (type === "LineString") {
+            geometry = this.drawLineString(data.points, color, topic);
+        } else if (type === "Text") {
+            geometry = this.drawText(data.text, data.position, color, topic);
+        }
+
+        // Add geometry to renderer
+        if (geometry) {
+            this.addGeometry(type, geometry, topic);
+        }
+
+        // Initialize topic array if not exists
+        if (!this.geometries[type][topic]) {
+            this.geometries[type][topic] = [];
+        }
+        if (!this.geometryData[type][topic]) {
+            this.geometryData[type][topic] = [];
+        }
+
+        // Manage geometry history
+        this.geometries[type][topic].push(geometry);
+        this.geometryData[type][topic].push({data, color, topic});
+        this.manageGeometryHistory(type, topic);
+
+    }
+
+    manageGeometryHistory(type, topic) {
+        // the number of geometries to keep in history
+        const historyLimit = this.historyLimits[topic];
+
+        // if (this.geometries[type][topic].length > historyLimit) {
+        while (this.geometries[type][topic].length > historyLimit) {
+
+            // remove the oldest geometry
+            const oldGeometry = this.geometries[type][topic].shift();            
+
+            // remove geometry object
+            if (oldGeometry && !oldGeometry.destroyed) {
+                this.geometryContainers[type].removeChild(oldGeometry);
+                oldGeometry.destroy({ children: true });
+            }
+        }
+
+        while (this.geometryData[type][topic].length > historyLimit) {
+            this.geometryData[type][topic].shift();
+        }
+
+        // life time of the geometry
+        // TODO: set life_time in the data, e.g. data.life_time = 1
+        // const lifeTime = 1
+        // console.log(this.lifeTimes[topic]);
+        // const lifeTime = this.lifeTimes[topic];
+        // if (lifeTime) {
+        //     console.log('Setting timeout');
+        //     setTimeout(() => {
+        //         if (geometry.destroyed) {
+        //             return;
+        //         }
+        //         console.log('Removing geometry');
+        //         this.geometryContainers[type].removeChild(geometry);
+        //         geometry.destroy({ children: true });
+        //         this.geometries[type][topic].shift();
+
+
+        //     }, lifeTime * 1000);
+        // }
+
+    }
+
+    
+    size() {
         // Ensure the renderer exists before resizing
         if (this.app?.renderer) {
             this.app.renderer.resize(window.innerWidth, window.innerHeight);
         }
-    }
+    }   
 
     // Transform coordinates if a transform function is provided
     transformCoordinates(x, y) {
@@ -120,6 +243,14 @@ export class GeometryRenderer {
         return { x, y };
     }
 
+    // Update the coordinate transform
+    updateCoordinateTransform(transformFunction) {
+        console.log('Updating coordinate transform');
+        this.coordinateTransform = transformFunction;
+        this.redrawAllGeometries();
+    }
+
+    
     getTopicColor(topic, dataType) {
         // First, check if topic has a specific style
         if (TOPIC_STYLES[topic]) {
@@ -130,6 +261,56 @@ export class GeometryRenderer {
         return TOPIC_STYLES.default[dataType] || 0xffffff;
     }
 
+    // Add a method to redraw all stored geometries
+    redrawAllGeometries() {
+
+        // Clear all containers first
+        Object.keys(this.geometryContainers).forEach(type => {
+            this.geometryContainers[type].removeChildren();
+        });
+
+        // Redraw each type of geometry
+        Object.keys(this.geometryData).forEach(type => {
+            // topic loop
+            Object.keys(this.geometryData[type]).forEach(topic => {
+                this.geometryData[type][topic].forEach(item => {
+                    let geometry;
+
+                    const data = item.data;
+                    const color = item.color;
+                    const topic = item.topic;
+                    const lineWidth = 2;  // TODO: set line width in the data
+                    const radius = 5;    // TODO: set radius in the data
+
+                    switch(type) {
+                        case 'Text':
+                            geometry = this.drawText(data.text, data.position, color, topic);
+                            break;
+                        case 'Polygon':
+                            geometry = this.drawPolygon(data.points, color, topic);
+                            break;
+                        case 'PolygonVector':
+                            geometry = this.drawPolygonVector(data.polygons, "#0000ff", topic);
+                            break;
+                        case 'Point2d':
+                            geometry = this.drawPoint(data.point, color, topic, radius);
+                            break;
+                        case 'LineString':
+                            geometry = this.drawLineString(data.points, color, topic, lineWidth);
+                            break;
+                    }
+                
+                    if (geometry) {
+                        this.addGeometry(type, geometry, item.topic);
+                        this.geometries[type][item.topic].push(geometry);
+                    }
+
+                this.manageGeometryHistory(type, topic);
+
+            });});
+        });
+    }
+    
     drawText(text, position, color, topic) {
         const transformedPos = this.transformCoordinates(position.x, position.y);
 
@@ -148,7 +329,36 @@ export class GeometryRenderer {
         return textObj;
     }
 
+    drawPolygon(points, color, topic) {
+        if (points.length < 3) return null;
+        const alpha = 0.2;
+        const graphics = new PIXI.Graphics();
+
+        graphics.beginFill(color, alpha);
+        graphics.lineStyle(2, color, 1);
+
+        // Transform and draw first point
+        const firstPoint = this.transformCoordinates(points[0].x, points[0].y);
+        graphics.moveTo(firstPoint.x, firstPoint.y);
+
+        // Draw lines to subsequent points
+        for (let i = 1; i < points.length; i++) {
+            const point = this.transformCoordinates(points[i].x, points[i].y);
+            graphics.lineTo(point.x, point.y);
+        }
+1
+        // Close the polygon
+        graphics.closePath();
+        graphics.endFill();
+
+        // Add metadata for potential interaction
+        graphics.topic = topic;
+        
+        return graphics;
+    }
+
     drawPolygonVector(polygons, color, topic) {
+   
         const alpha = 0.2;
         const graphics = new PIXI.Graphics();
         
@@ -187,36 +397,9 @@ export class GeometryRenderer {
     }
     
 
-    drawPolygon(points, color, topic) {
-        if (points.length < 3) return null;
-
-        const alpha = 0.2;
-        const graphics = new PIXI.Graphics();
-
-        graphics.beginFill(color, alpha);
-        graphics.lineStyle(2, color, 1);
-
-        // Transform and draw first point
-        const firstPoint = this.transformCoordinates(points[0].x, points[0].y);
-        graphics.moveTo(firstPoint.x, firstPoint.y);
-
-        // Draw lines to subsequent points
-        for (let i = 1; i < points.length; i++) {
-            const point = this.transformCoordinates(points[i].x, points[i].y);
-            graphics.lineTo(point.x, point.y);
-        }
-
-        // Close the polygon
-        graphics.closePath();
-        graphics.endFill();
-
-        // Add metadata for potential interaction
-        graphics.topic = topic;
-        
-        return graphics;
-    }
 
     drawPoint(point, color, topic, radius = 5) {
+
         const transformedPoint = this.transformCoordinates(point.x, point.y);
         
         const graphics = new PIXI.Graphics();
@@ -254,6 +437,8 @@ export class GeometryRenderer {
 
     // Clear geometries for a specific type or topic
     clear(type, topic) {
+        console.log('Clearing geometries');
+        
         const container = this.geometryContainers[type];
         
         if (!container) {
@@ -269,17 +454,39 @@ export class GeometryRenderer {
                 child.destroy();
             }
         }
+        // Also clear stored data
+        if (this.geometryData[type]) {
+            if (topic) {
+                this.geometryData[type][topic] = this.geometryData[type][topic].filter(item => item.topic !== topic);
+            } else {
+                this.geometryData[type][topic] = [];
+            }
+        }
     }
 
     // Add a geometry to the appropriate container
     addGeometry(type, geometry, topic) {
+
+        // 
         if (!this.geometryContainers[type]) {
             Logger.warn(`Container for type ${type} not found`);
             return;
         }
         
+        // Add PIXI object to the container
         if (geometry) {
             this.geometryContainers[type].addChild(geometry);
+        }
+
+        // Add metadata for potential interaction
+        if (geometry) {
+
+             // Initialize topic array if not exists
+            if (!this.geometries[type][topic]) {
+                this.geometries[type][topic] = [];
+            }   
+            this.geometries[type][topic].push(geometry);
+
         }
     }
 }

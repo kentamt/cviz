@@ -31,6 +31,15 @@ export class WebSocketManager {
         } else {
             this.init();
         }
+
+        // Create geometry renderer to expose to other renderers
+        // this.geometryRenderer = new GeometryRenderer(options.rendererOptions);
+        
+        // Store decay time for each topic
+        // Add a new entry for each topic to set a decay time
+        // i.e. this.decayTimes['topic_name'] = 1000;  // sec
+        this.lifeTimes = {};
+        this.historyLimits = {};
     }
 
     init() {
@@ -111,55 +120,76 @@ export class WebSocketManager {
     }
 
     processGeometryData(data) {
-        const type = data.data_type;
-        const topic = data.topic || 'default';
 
-        Logger.debug(`Processing ${type} data for topic: ${topic}`);
+        this.renderer.processGeometryData(data);
+
+        // const type = data.data_type;
+        // const topic = data.topic || 'default';
+
+        // // Add life time to the geometry if there exists a life time for the topic
+        // if (data.life_time) {
+        //     this.lifeTimes[topic] = data.life_time;
+        // }else{
+        //     this.lifeTimes[topic] = 0;  // no life time limit
+        // }
+
+        // // Add history limit to the geometry if there exists a history limit for the topic
+        // if (data.history_limit) {
+        //     this.historyLimits[topic] = data.history_limit;
+        // }else{
+        //     this.historyLimits[topic] = this.options.historyLimits[type];
+        // }
         
-        // Initialize topic array if not exists
-        if (!this.geometries[type][topic]) {
-            this.geometries[type][topic] = [];
-        }
-
-        // Get color for the topic
-        const color = this.renderer.getTopicColor(topic, type);
-
-        // Create geometry based on type
-        let geometry;
-        if (type === "Polygon") {
-            geometry = this.renderer.drawPolygon(data.points, color, topic);
-        } else if (type === "PolygonVector") {
-            geometry = this.renderer.drawPolygonVector(data.polygons, color, topic);
-        } else if (type === "Point2d") {
-            geometry = this.renderer.drawPoint(data.point, color, topic, 2);
-        } else if (type === "LineString") {
-            geometry = this.renderer.drawLineString(data.points, color, topic);
-        } else if (type === "Text") {
-            geometry = this.renderer.drawText(data.text, data.position, color, topic);
-        }
-
-        // Add geometry to renderer
-        if (geometry) {
-            this.renderer.addGeometry(type, geometry, topic);
-        }
-
-        // Manage geometry history
-        this.geometries[type][topic].push(geometry);
-
-        // the number of geometries to keep in history
-        const historyLimit = this.options.historyLimits[type];
+        // Logger.debug(`Processing ${type} data for topic: ${topic}`);
         
-        if (this.geometries[type][topic].length > historyLimit) {
-            const oldGeometry = this.geometries[type][topic].shift();
-            if (oldGeometry) {
-                this.renderer.geometryContainers[type].removeChild(oldGeometry);
-                oldGeometry.destroy({ children: true });
-            }
-        }
+        // // Initialize topic array if not exists
+        // if (!this.geometries[type][topic]) {
+        //     this.geometries[type][topic] = [];
+        // }
 
-        // life time of the geometry
-        // TODO: set life_time in the data, e.g. data.life_time = 1
-        // const lifeTime = 1
+        // // Get color for the topic
+        // const color = this.renderer.getTopicColor(topic, type);
+
+        // // Create geometry based on type
+        // let geometry;
+        // if (type === "Polygon") {
+        //     geometry = this.renderer.drawPolygon(data.points, color, topic);
+        // } else if (type === "PolygonVector") {
+        //     geometry = this.renderer.drawPolygonVector(data.polygons, color, topic);
+        // } else if (type === "Point2d") {
+        //     geometry = this.renderer.drawPoint(data.point, color, topic, 2);
+        // } else if (type === "LineString") {
+        //     geometry = this.renderer.drawLineString(data.points, color, topic);
+        // } else if (type === "Text") {
+        //     geometry = this.renderer.drawText(data.text, data.position, color, topic);
+        // }
+
+        // // Add geometry to renderer
+        // if (geometry) {
+        //     this.renderer.addGeometry(type, geometry, topic);
+        // }
+
+        // // Manage geometry history
+        // this.geometries[type][topic].push(geometry);
+
+        // // the number of geometries to keep in history
+        // const historyLimit = this.historyLimits[topic];
+
+        // // show the number of geometries in history now
+        // Logger.log(`Number of geometries in history: ${this.geometries[type][topic].length}`);
+
+        // if (this.geometries[type][topic].length > historyLimit) {
+        //     const oldGeometry = this.geometries[type][topic].shift();
+        //     if (oldGeometry) {
+        //         this.renderer.geometryContainers[type].removeChild(oldGeometry);
+        //         oldGeometry.destroy({ children: true });
+        //     }
+        // }
+
+        // // life time of the geometry
+        // // TODO: set life_time in the data, e.g. data.life_time = 1
+        // // const lifeTime = 1
+        // const lifeTime = this.lifeTimes[topic];
         // if (lifeTime) {
         //     setTimeout(() => {
         //         if (geometry.destroyed) {return;}

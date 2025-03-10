@@ -80,15 +80,13 @@ def main():
     
     transformer = Transformer.from_crs("EPSG:32630", "EPSG:4326")
 
-    
-    
     num_agents = 300
     acceleration = 0.0 
     
-    x_min = 0
-    x_max = 10
-    y_min = 0
-    y_max = 10
+    x_min = 5000
+    x_max = 5000
+    y_min = 5000
+    y_max = 5000
     
     utm_x, utm_y = 699375, 5709945
     
@@ -97,7 +95,7 @@ def main():
         x = random.uniform(utm_x - x_min, utm_x + x_max)
         y = random.uniform(utm_y - y_min, utm_y + y_max)
         yaw = random.uniform(0, 2 * math.pi)
-        models.append(KinematicBicycleModel(x=x, y=y, v=10, yaw=yaw))
+        models.append(KinematicBicycleModel(x=x, y=y, v=50, yaw=yaw))
 
     time.sleep(1)
     
@@ -132,17 +130,18 @@ def main():
                 polygons.append(polygon_data)
 
                 # warp agents                       
-                # if x > x_max:
-                #     models[i].state[0] = x_min
-                # if y > y_max:
-                #     models[i].state[1] = y_min
-                # if x < x_min:
-                #     models[i].state[0] = x_max
-                # if y < y_min:
-                #     models[i].state[1] = y_max
+                if x > utm_x + x_max:
+                    models[i].state[0] = x_min
+                if y > utm_y + y_max:
+                    models[i].state[1] = y_min
+                if x < utm_x - x_min:
+                    models[i].state[0] = x_max
+                if y < utm_y - y_min:
+                    models[i].state[1] = y_max
 
             # polygon vector data                             
             polygon_vector_data = {'polygons': polygons}                 
+            polygon_vector_data['history_limit'] = 100
             polygon_vector_pub.publish(polygon_vector_data)
 
             logging.debug(f"Step: {sim_step}")

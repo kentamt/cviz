@@ -77,7 +77,7 @@ def main():
     """    
     polygon_vector_pub = Publisher(topic_name="polygon_vector", data_type='PolygonVector')
     
-    num_agents = 300
+    num_agents = 100
     acceleration = 0.0 
     x_min, x_max, y_min, y_max = -1000, 1000, -1000, 1000
     models = []
@@ -124,6 +124,8 @@ def main():
 
             # polygon vector data                             
             polygon_vector_data = {'polygons': polygons}                 
+            polygon_vector_data['life_time'] = 0
+            polygon_vector_data['history_limit'] = 100
             polygon_vector_pub.publish(polygon_vector_data)
 
             logging.debug(f"Step: {sim_step}")

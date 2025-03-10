@@ -71,6 +71,9 @@ export class CanvasRenderer {
                 coordinateTransform: transformFunction
             }
         });
+
+        // Store the geometry renderer instance
+        this.geometryRenderer = this.wsManager.renderer;
         
         // Initial canvas setup
         this.drawGrid();
@@ -104,7 +107,6 @@ export class CanvasRenderer {
             <div>Viewport: x=${this.viewport.x.toFixed(0)}, y=${this.viewport.y.toFixed(0)}, 
                        w=${this.viewport.width.toFixed(0)}, h=${this.viewport.height.toFixed(0)}</div>
             <div>Canvas: ${this.width}x${this.height}</div>
-            <div>Point (300,300) should be at screen: ${JSON.stringify(this.transformCoordinates(300, 300))}</div>
         `;
     }
     
@@ -141,7 +143,7 @@ export class CanvasRenderer {
         
         // Logger.log(`Debug point added at model (${x}, ${y}) -> screen (${screenPos.x.toFixed(0)}, ${screenPos.y.toFixed(0)})`);
     }
-    
+        
     // Transform coordinates from model space to screen pixels
     transformCoordinates(_x, _y) {
         // Calculate the scale factor based on the smallest dimension to maintain aspect ratio
@@ -185,6 +187,17 @@ export class CanvasRenderer {
         
         return { x, y };
     }
+
+    // Update the transform in the geometry render to match the canvas
+    updateGeometryTransform() {
+        if (this.geometryRenderer) {
+            const transformFunction = (x, y) => {
+                return this.transformCoordinates(x, y);
+            };
+            this.geometryRenderer.updateCoordinateTransform(transformFunction);
+        }
+    }
+
 
     // Draw grid lines based on current viewport
     drawGrid() {
@@ -304,6 +317,7 @@ export class CanvasRenderer {
 
             this.drawGrid();
             this.updateDebugInfo();
+            this.updateGeometryTransform();
         });
 
         this.app.view.addEventListener('mouseup', () => {
@@ -318,33 +332,39 @@ export class CanvasRenderer {
                 this.viewport.x -= panStep;
                 this.drawGrid();
                 this.updateDebugInfo();
+                this.updateGeometryTransform();
             }
             if (e.key === 'ArrowRight') {
                 this.viewport.x += panStep;
                 this.drawGrid();
-                this.updateDebugInfo();
+                this.updateDebugInfo()
+                this.updateGeometryTransform();
             }
             if (e.key === 'ArrowUp') {
                 this.viewport.y -= panStep;
                 this.drawGrid();
                 this.updateDebugInfo();
+                this.updateGeometryTransform();
             }
             if (e.key === 'ArrowDown') {
                 this.viewport.y += panStep;
                 this.drawGrid();
                 this.updateDebugInfo();
+                this.updateGeometryTransform();
             }
             
             // Reset view with 'r' key
             if (e.key === 'r') {
                 this.resetView();
                 this.updateDebugInfo();
+                this.updateGeometryTransform();
             }
             
             // Center on point (300,300) with 'c' key
             if (e.key === 'c') {
                 this.centerOn(300, 300);
                 this.updateDebugInfo();
+                this.updateGeometryTransform();
             }
         });
 
@@ -379,6 +399,7 @@ export class CanvasRenderer {
             
             this.drawGrid();
             this.updateDebugInfo();
+            this.updateGeometryTransform();
         });
 
         // Keyboard zoom
@@ -402,6 +423,7 @@ export class CanvasRenderer {
                 
                 this.drawGrid();
                 this.updateDebugInfo();
+                this.updateGeometryTransform();
             }
             
             // Toggle grid with 'g' key
@@ -429,6 +451,8 @@ export class CanvasRenderer {
         };
         
         this.drawGrid();
+        this.updateGeometryTransform();
+        
         Logger.log(`Centered viewport on (${x}, ${y})`);
     }
     
@@ -446,6 +470,7 @@ export class CanvasRenderer {
     resetView(viewport = { x: 0, y: 0, width: 1000, height: 1000 }) {
         this.viewport = viewport;
         this.drawGrid();
+        this.updateGeometryTransform();
         Logger.log("View reset to initial state");
     }
 }

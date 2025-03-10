@@ -57,6 +57,9 @@ export class MapRenderer {
             }
         });
         
+        // Store the geometry renderer
+        this.geometryRenderer = this.wsManager.renderer;
+
         // Initial map loading
         this.loadTiles();
         
@@ -82,6 +85,17 @@ export class MapRenderer {
 
         return { x, y };
     }
+
+    // Update the transform in the geometry render to match the canvas
+    updateGeometryTransform() {
+        if (this.geometryRenderer) {
+            const transformFunction = (x, y) => {
+                return this.transformCoordinates(x, y);
+            };
+            this.geometryRenderer.updateCoordinateTransform(transformFunction);
+        }
+    }
+
     
     // Load map tiles based on current center and zoom
     loadTiles() {
@@ -138,6 +152,7 @@ export class MapRenderer {
             this.center.lat += dy * latPerPixel;
 
             this.loadTiles();
+            this.updateGeometryTransform();
         });
 
         this.app.view.addEventListener('mouseup', () => {
@@ -152,18 +167,22 @@ export class MapRenderer {
             if (e.key === 'ArrowLeft') {
                 this.center.lon -= step_size * diff_angle;
                 this.loadTiles();
+                this.updateGeometryTransform();
             }
             if (e.key === 'ArrowRight') {
                 this.center.lon += step_size * diff_angle;
                 this.loadTiles();
+                this.updateGeometryTransform();
             }
             if (e.key === 'ArrowUp') {
                 this.center.lat += step_size * diff_angle * Math.cos(this.center.lat * Math.PI / 180);
                 this.loadTiles();
+                this.updateGeometryTransform();
             }
             if (e.key === 'ArrowDown') {
                 this.center.lat -= step_size * diff_angle * Math.cos(this.center.lat * Math.PI / 180);
                 this.loadTiles();
+                this.updateGeometryTransform();
             }
         });
 
@@ -177,6 +196,7 @@ export class MapRenderer {
                 this.zoom = Math.min(this.zoom + 1, 19);
             }
             this.loadTiles();
+            this.updateGeometryTransform();
         });
 
         // Keyboard zoom
@@ -184,9 +204,11 @@ export class MapRenderer {
             if (e.key === '=') {
                 this.zoom = Math.min(this.zoom + 1, 19);
                 this.loadTiles();
+                this.updateGeometryTransform();
             } else if (e.key === '-') {
                 this.zoom = Math.max(this.zoom - 1, 2);
                 this.loadTiles();
+                this.updateGeometryTransform();
             }
         });
     }
