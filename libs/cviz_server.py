@@ -20,7 +20,7 @@ class CvizServer:
     127.0.0.1:6789 -> WebSocket Server
     """
         
-    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555", websocket_port=6789):
+    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555", websocket_port=8675):
         # subscriber setup
         # TODO: We want to add subscriber dynamically via GUI or API
         self.sub_list = []

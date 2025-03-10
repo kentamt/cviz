@@ -47,6 +47,7 @@ class Subscriber:
                 
                 # Yield control to allow other async operations
                 await asyncio.sleep(0)
+                
 
             except zmq.Again:
                 # No message available, just continue

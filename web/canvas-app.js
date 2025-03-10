@@ -24,7 +24,7 @@ const canvasApp = new CanvasRenderer({
     gridSize: 50,
     showGrid: true,
     wsOptions: {
-        serverUrl: "ws://127.0.0.1:6789"
+        serverUrl: "ws://127.0.0.1:8765"
     }
 });
 
