@@ -1,3 +1,4 @@
+import sys
 import subprocess
 from pathlib import Path
 from fastapi import FastAPI
@@ -12,15 +13,23 @@ SWARM_SCRIPT = Path("example/swarm_example.py")
 CVIZ_SCRIPT = Path("example/cviz_example.py")
 
 def run_script(script_path: Path):
-        subprocess.Popen(["python", script_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        ["python", script_path],
+        stdout=sys.stdout, 
+        stderr=sys.stderr, 
+        text=True,  
+        bufsize=1  
+    )
 
 @app.on_event("startup")
 async def startup_event():
-    threading.Thread(target=run_script, args=(CVIZ_SCRIPT,)).start()
-    print("🚀 Started Cviz Server")
+    print("🚀 Starting scripts...", flush=True)
+    
+    threading.Thread(target=run_script, args=(CVIZ_SCRIPT,), daemon=True).start()
+    print("🚀 Started Cviz Server", flush=True)
 
-    threading.Thread(target=run_script, args=(SWARM_SCRIPT,)).start()
-    print("🚀 Started Swarm Simulator")
+    threading.Thread(target=run_script, args=(SWARM_SCRIPT,), daemon=True).start()
+    print("🚀 Started Swarm Simulator", flush=True)
 
 @app.get("/")
 def root():
