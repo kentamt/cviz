@@ -1,4 +1,4 @@
-# Cviz 
+# 👾Cviz 
 Web-based visualisation tool for Python
 
 <table style="width:100%; table-layout: fixed; border-collapse: collapse;">
@@ -90,6 +90,6 @@ def main():
 - [ ] decay time
 - [ ] colour
 - [ ] add GUI to control topics
-- [ ] zoom and pan
-- [ ] lon, lat, map
+- [x] zoom and pan
+- [x] lon, lat, map
 
