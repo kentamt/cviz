@@ -66,7 +66,7 @@ class CvizServer:
                         topic = _sub.topic
                         self.last_time[topic] = time.time()
                         message = _sub.get_message()
-
+                        logging.info(f"Topic: {topic}")
                         if message is not None:       
                             websocket_message = json.dumps(message)
                             for client in self.clients:
@@ -87,8 +87,7 @@ class CvizServer:
             "127.0.0.1", 
             self.websocket_port,
             ping_interval=20,
-            ping_timeout=20,
-            path="/ws"
+            ping_timeout=20
         )
         
         logging.info(f"WebSocket server started on ws://127.0.0.1:{self.websocket_port}")

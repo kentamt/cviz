@@ -94,6 +94,7 @@ export class WebSocketManager {
 
         this.ws.onerror = (error) => {
             Logger.error(`WebSocket error: ${JSON.stringify(error)}`);
+            Logger.error(`WebSocket error: ${error.message || "Unknown error"}`);
         };
 
         this.ws.onclose = (event) => {
