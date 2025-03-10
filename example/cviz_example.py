@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from libs.cviz_server import CvizServer
 
 def main():
-    cviz = CvizServer()
+    cviz = CvizServer(websocket_port=8765)
     # cviz.add_subscriber(topic_name="polygon_1")
     # cviz.add_subscriber(topic_name="polygon_2")
     # cviz.add_subscriber(topic_name="point")
@@ -17,6 +17,7 @@ def main():
 
     # swarm example
     cviz.add_subscriber(topic_name="polygon_vector")
+    cviz.add_subscriber(topic_name="boundary")
 
     try:
         asyncio.run(cviz.start_server())

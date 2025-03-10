@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+zmq
+pyproj
+numpy
+websockets

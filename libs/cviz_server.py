@@ -1,3 +1,4 @@
+import time
 import logging
 import asyncio
 import websockets
@@ -19,7 +20,7 @@ class CvizServer:
     127.0.0.1:6789 -> WebSocket Server
     """
         
-    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555", websocket_port=6789):
+    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555", websocket_port=8675):
         # subscriber setup
         # TODO: We want to add subscriber dynamically via GUI or API
         self.sub_list = []
@@ -27,6 +28,8 @@ class CvizServer:
         # WebSocket Clients
         self.clients = set()
         self.websocket_port = websocket_port
+
+        self.last_time = {}
 
     def add_subscriber(self, topic_name):
         """Add a new subscriber."""
@@ -57,27 +60,18 @@ class CvizServer:
         while True:
             try:
                 if self.clients:
-                    
+
                     # TODO: We want to add multiple subscribers dynamically                                        
                     for _sub in self.sub_list:
-
                         topic = _sub.topic
+                        self.last_time[topic] = time.time()
                         message = _sub.get_message()
-                        logging.debug(f"Topic: {topic}, Message: {message}")
-
-
+                        logging.info(f"Topic: {topic}")
                         if message is not None:       
                             websocket_message = json.dumps(message)
-                            
-                            # send message to all clients connected
-                            # await asyncio.gather(
-                            #     *[client.send(websocket_message) for client in self.clients]
-                            # )
                             for client in self.clients:
                                 await client.send(websocket_message)
-                                
 
-    
                 # Yield control to allow other async operations
                 await asyncio.sleep(0)
                     

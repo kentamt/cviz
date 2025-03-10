@@ -2,7 +2,7 @@
 import { GeometryRenderer, Logger } from './geometry-renderer.js';
 
 // Default WebSocket settings
-const DEFAULT_SERVER_URL = "ws://127.0.0.1:6789";
+const DEFAULT_SERVER_URL = "ws://127.0.0.1:8675";
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_TIMEOUT = 1000;  // 1 second
 
@@ -94,6 +94,7 @@ export class WebSocketManager {
 
         this.ws.onerror = (error) => {
             Logger.error(`WebSocket error: ${JSON.stringify(error)}`);
+            Logger.error(`WebSocket error: ${error.message || "Unknown error"}`);
         };
 
         this.ws.onclose = (event) => {
