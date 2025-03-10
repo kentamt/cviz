@@ -1,38 +1,24 @@
 # Cviz 
 Web-based visualisation tool for Python
 
-<table>
+<table style="width:100%; table-layout: fixed; border-collapse: collapse;">
   <tr>
-    <td>
-      <video src="https://github.com/user-attachments/assets/0bbb7911-3b68-49cb-8aa0-923fb4b55a2e" controls width="100%"></video>
+    <td style="width: 50%;">
+      <video src="https://github.com/user-attachments/assets/0bbb7911-3b68-49cb-8aa0-923fb4b55a2e" controls style="width: 100%;"></video>
     </td>
-    <td>
-      <video src="https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573" controls width="100%"></video>
+    <td style="width: 50%;">
+      <video src="https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573" controls style="width: 100%;"></video>
+    </td>
+  </tr>
+  <tr>
+    <td style="width: 50%;">
+      <video src="https://github.com/user-attachments/assets/78cd4763-3d5e-4d8d-a868-a443a2e0aeea" controls style="width: 100%;"></video>
+    </td>
+    <td style="width: 50%;">
+      <video src="https://github.com/user-attachments/assets/ab5b0112-fe0f-410e-83ab-ccff1db41cb6" controls style="width: 100%;"></video>
     </td>
   </tr>
 </table>
-
-
-<table>
-  <tr>
-    <td>
-      <video src="https://github.com/user-attachments/assets/78cd4763-3d5e-4d8d-a868-a443a2e0aeea" controls width="100%"></video>
-    </td>
-    <td>
-      <video src="https://github.com/user-attachments/assets/ab5b0112-fe0f-410e-83ab-ccff1db41cb6" controls width="100%"></video>
-    </td>
-  </tr>
-</table>
-
-
-
-
-
-
-
-
-
-
 
 
 
