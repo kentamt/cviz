@@ -8,7 +8,8 @@ export const TOPIC_STYLES = {
         Polygon: 0x00ff00,      // Bright Green
         PolygonVector: 0xff00ff, // Magenta
         Point2d: 0x00ffff,       // Cyan
-        LineString: 0xff0000     // Bright Red
+        LineString: 0xff0000,     // Bright Red
+        LineStringVector: 0x5555ff  // Light Purple
     },
     
     // Topic-specific color overrides
@@ -83,7 +84,8 @@ export class GeometryRenderer {
             Polygon: new PIXI.Container(),
             PolygonVector: new PIXI.Container(),
             Point2d: new PIXI.Container(),
-            LineString: new PIXI.Container()
+            LineString: new PIXI.Container(),
+            LineStringVector: new PIXI.Container()
         };
 
         // Manage geometries for each topic
@@ -92,7 +94,8 @@ export class GeometryRenderer {
             Polygon: {},
             PolygonVector: {},
             Point2d: {},
-            LineString: {}
+            LineString: {},
+            LineStringVector: {}
         };
 
 
@@ -102,7 +105,8 @@ export class GeometryRenderer {
             Polygon: {},
             PolygonVector: {},
             Point2d: {},
-            LineString: {}
+            LineString: {},
+            LineStringVector: {}
         };
 
         // Set z-index for containers
@@ -111,6 +115,7 @@ export class GeometryRenderer {
         this.geometryContainers.PolygonVector.zIndex = 100;
         this.geometryContainers.Point2d.zIndex = 70;
         this.geometryContainers.LineString.zIndex = 60;
+        this.geometryContainers.LineStringVector.zIndex = 60;
 
         // Add containers to the stage
         Object.values(this.geometryContainers).forEach(container => {
@@ -161,6 +166,8 @@ export class GeometryRenderer {
             geometry = this.drawPoint(data.point, color, topic, 2);
         } else if (type === "LineString") {
             geometry = this.drawLineString(data.points, color, topic);
+        } else if (type === "LineStringVector") {
+            geometry = this.drawLineStringVector(data.lines, color, topic);
         } else if (type === "Text") {
             geometry = this.drawText(data.text, data.position, color, topic);
         }
@@ -301,7 +308,10 @@ export class GeometryRenderer {
                         case 'LineString':
                             geometry = this.drawLineString(data.points, color, topic, lineWidth);
                             break;
-                    }
+                        case 'LineStringVector':
+                            geometry = this.drawLineStringVector(data.lines, color, topic, lineWidth);
+                            break;
+                        }
                 
                     if (geometry) {
                         this.addGeometry(type, geometry, item.topic);
@@ -438,6 +448,30 @@ export class GeometryRenderer {
         return graphics;
     }
 
+    drawLineStringVector(lines, color, topic, lineWidth = 2) {
+    
+        const graphics = new PIXI.Graphics();
+        graphics.lineStyle(lineWidth, color, 1);
+
+        for (const line of lines) {
+            if (line.points && line.points.length > 1) {
+                const firstPoint = this.transformCoordinates(line.points[0].x, line.points[0].y);
+                graphics.moveTo(firstPoint.x, firstPoint.y);
+    
+                for (let i = 1; i < line.points.length; i++) {
+                    const point = this.transformCoordinates(line.points[i].x, line.points[i].y);
+                    graphics.lineTo(point.x, point.y);
+                }
+            }
+        }
+
+        // Add metadata for potential interaction
+        graphics.topic = topic;
+
+        return graphics;
+    }
+
+    
     // Clear geometries for a specific type or topic
     clear(type, topic) {
         
