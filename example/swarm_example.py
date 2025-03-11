@@ -74,9 +74,30 @@ def main():
             }
         ] 
     }
+    
+    LineStringVector:
+    {
+        lines: [
+            {
+                'points': [
+                    {'x': 100, 'y': 100}, 
+                    {'x': 200, 'y': 100},
+                    ...
+                ]
+            },
+            {
+                'points': [
+                    {'x': 100, 'y': 100}, 
+                    {'x': 200, 'y': 100},
+                    ...
+                ]
+            }
+        ]
+    }
     """    
     polygon_vector_pub = Publisher(topic_name="polygon_vector", data_type='PolygonVector')
     linestring_pub = Publisher(topic_name="boundary", data_type='LineString')
+    trajectory_vector_pub = Publisher(topic_name="trajectory_vector", data_type='LineStringVector')
     
     num_agents = 100
     acceleration = 0.0 
@@ -101,15 +122,17 @@ def main():
     boundary_data['life_time'] = 0
     boundary_data['history_limit'] = 1
     boundary_data['color'] = '0x0055ff'
-    
+
+    trajectory_queues = {i: [] for i in range(num_agents)}
+
     log_interval = 60
-        
     sim_step = 0
     try:
         while True:
 
             polygons = []
-
+            linestrings = []
+            
             # evolve the model
             for i in range(num_agents):
 
@@ -125,15 +148,25 @@ def main():
                 }
                 polygons.append(polygon_data)
 
+                # generate a trajectory from the past position
+                trajectory_queues[i].append({'x': x, 'y': y})
+                if len(trajectory_queues[i]) > 100:
+                    trajectory_queues[i].pop(0)
+                linestrings.append({"points" : trajectory_queues[i]})
+
                 # warp agents                       
                 if x > x_max:
                     models[i].state[0] = x_min
+                    trajectory_queues[i] = []
                 if y > y_max:
                     models[i].state[1] = y_min
+                    trajectory_queues[i] = []
                 if x < x_min:
                     models[i].state[0] = x_max
+                    trajectory_queues[i] = []
                 if y < y_min:
                     models[i].state[1] = y_max
+                    trajectory_queues[i] = []
 
             # polygon vector data                             
             polygon_vector_data = {'polygons': polygons}                 
@@ -141,8 +174,15 @@ def main():
             polygon_vector_data['history_limit'] = 1
             polygon_vector_data['color'] = '0x00ffff'
 
+            # trajectory vector data
+            trajectory_vector_data = {'lines': linestrings}
+            trajectory_vector_data['life_time'] = 0
+            trajectory_vector_data['history_limit'] = 1
+            trajectory_vector_data['color'] = '0xff0000'
+
             polygon_vector_pub.publish(polygon_vector_data)
             linestring_pub.publish(boundary_data)    
+            trajectory_vector_pub.publish(trajectory_vector_data)
 
             if sim_step % log_interval == 0:
                 logging.info(f"Step: {sim_step}")

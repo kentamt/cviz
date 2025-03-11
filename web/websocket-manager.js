@@ -12,7 +12,8 @@ const DEFAULT_HISTORY_LIMITS = {
     Polygon: 1,
     PolygonVector: 1,
     Point2d: 100,
-    LineString: 10
+    LineString: 1,
+    LineStringVector: 1
 };
 
 export class WebSocketManager {
@@ -76,7 +77,8 @@ export class WebSocketManager {
             Polygon: {},
             PolygonVector: {},
             Point2d: {},
-            LineString: {}
+            LineString: {},
+            LineStringVector: {}
         };
 
         this.connectWebSocket();
@@ -121,85 +123,7 @@ export class WebSocketManager {
     }
 
     processGeometryData(data) {
-
         this.renderer.processGeometryData(data);
-
-        // const type = data.data_type;
-        // const topic = data.topic || 'default';
-
-        // // Add life time to the geometry if there exists a life time for the topic
-        // if (data.life_time) {
-        //     this.lifeTimes[topic] = data.life_time;
-        // }else{
-        //     this.lifeTimes[topic] = 0;  // no life time limit
-        // }
-
-        // // Add history limit to the geometry if there exists a history limit for the topic
-        // if (data.history_limit) {
-        //     this.historyLimits[topic] = data.history_limit;
-        // }else{
-        //     this.historyLimits[topic] = this.options.historyLimits[type];
-        // }
-        
-        // Logger.debug(`Processing ${type} data for topic: ${topic}`);
-        
-        // // Initialize topic array if not exists
-        // if (!this.geometries[type][topic]) {
-        //     this.geometries[type][topic] = [];
-        // }
-
-        // // Get color for the topic
-        // const color = this.renderer.getTopicColor(topic, type);
-
-        // // Create geometry based on type
-        // let geometry;
-        // if (type === "Polygon") {
-        //     geometry = this.renderer.drawPolygon(data.points, color, topic);
-        // } else if (type === "PolygonVector") {
-        //     geometry = this.renderer.drawPolygonVector(data.polygons, color, topic);
-        // } else if (type === "Point2d") {
-        //     geometry = this.renderer.drawPoint(data.point, color, topic, 2);
-        // } else if (type === "LineString") {
-        //     geometry = this.renderer.drawLineString(data.points, color, topic);
-        // } else if (type === "Text") {
-        //     geometry = this.renderer.drawText(data.text, data.position, color, topic);
-        // }
-
-        // // Add geometry to renderer
-        // if (geometry) {
-        //     this.renderer.addGeometry(type, geometry, topic);
-        // }
-
-        // // Manage geometry history
-        // this.geometries[type][topic].push(geometry);
-
-        // // the number of geometries to keep in history
-        // const historyLimit = this.historyLimits[topic];
-
-        // // show the number of geometries in history now
-        // Logger.log(`Number of geometries in history: ${this.geometries[type][topic].length}`);
-
-        // if (this.geometries[type][topic].length > historyLimit) {
-        //     const oldGeometry = this.geometries[type][topic].shift();
-        //     if (oldGeometry) {
-        //         this.renderer.geometryContainers[type].removeChild(oldGeometry);
-        //         oldGeometry.destroy({ children: true });
-        //     }
-        // }
-
-        // // life time of the geometry
-        // // TODO: set life_time in the data, e.g. data.life_time = 1
-        // // const lifeTime = 1
-        // const lifeTime = this.lifeTimes[topic];
-        // if (lifeTime) {
-        //     setTimeout(() => {
-        //         if (geometry.destroyed) {return;}
-        //         this.renderer.geometryContainers[type].removeChild(geometry);
-        //         geometry.destroy({ children: true });
-        //         this.geometries[type][topic].shift();
-        //     }, lifeTime * 1000);
-        // }
-
     }
 
     validateGeometryData(data) {
@@ -213,7 +137,8 @@ export class WebSocketManager {
             "Polygon": this.validatePolygonData,
             "PolygonVector": this.validatePolygonVectorData,
             "Point2d": this.validatePointData,
-            "LineString": this.validateLineStringData
+            "LineString": this.validateLineStringData,
+            "LineStringVector": this.validateLineStringVectorData
         };
 
         const validator = validationMap[data.data_type];
@@ -234,7 +159,8 @@ export class WebSocketManager {
 
     validatePolygonVectorData(data) {
         return data.polygons && Array.isArray(data.polygons);
-         // && data.polygons.points.length > 0;  # FIXME: This is not working
+        // TODO: Add polygon validation
+        // && data.polygons.points.length > 0;  # FIXME: This is not working
     }
 
     validatePointData(data) {
@@ -248,6 +174,11 @@ export class WebSocketManager {
                data.points.every(p => p && typeof p.x === 'number' && typeof p.y === 'number');
     }
 
+    validateLineStringVectorData(data) {
+        // TODO: Add line string vector validation
+        return data.lines && Array.isArray(data.lines);
+    }
+    
     reconnect() {
         if (this.reconnectAttempts < this.options.maxReconnectAttempts) {
             const timeout = BASE_RECONNECT_TIMEOUT * Math.pow(2, this.reconnectAttempts);
