@@ -20,25 +20,6 @@ Web-based visualisation tool for Python
   </tr>
 </table>
 
-
-
-
-
-## Data type
-- [x] Point2Da
-- [ ] PointCloud2D
-- [x] Polygon
-- [x] PolygonVector
-- [x] LineString
-- [ ] LineStringVector
-- [x] Text
-- [ ] TextVector
-- [ ] Arrow
-- [ ] ArrowVector
-- [ ] SVG
-- [ ] SVGVector
-- [ ] GridMap
-
 ## Demo
 tested with Python3.12
 ```bash
@@ -50,6 +31,21 @@ uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
 Visit `localhost:8000`
+
+## Data type
+- [x] Point2Da
+- [ ] PointCloud2D
+- [x] Polygon
+- [x] PolygonVector
+- [x] LineString
+- [x] LineStringVector
+- [x] Text
+- [ ] TextVector
+- [ ] Arrow
+- [ ] ArrowVector
+- [ ] SVG
+- [ ] SVGVector
+- [ ] GridMap
 
 ## How it works
 
@@ -75,9 +71,11 @@ def main():
 ```
 
 ## TODO
-- [ ] decay time
-- [ ] colour
-- [ ] add GUI to control topics
 - [x] zoom and pan
 - [x] lon, lat, map
+- [x] history limit
+- [x] colour
+- [ ] lifetime
+- [ ] add GUI to control topics
+- [ ] remote 
 
