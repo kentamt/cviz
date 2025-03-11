@@ -4,19 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 import threading
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
-
-
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"], 
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
 
 # Dedicated health check endpoint
 @app.get("/health")

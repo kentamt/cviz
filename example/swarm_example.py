@@ -107,7 +107,7 @@ def main():
         x = random.uniform(x_min, x_max)
         y = random.uniform(y_min, y_max)
         yaw = random.uniform(0, 2 * math.pi)
-        models.append(KinematicBicycleModel(x=x, y=y, v=10, yaw=yaw))
+        models.append(KinematicBicycleModel(x=x, y=y, v=50, yaw=yaw))
 
     # boundary data
     boundary_data = {
@@ -181,7 +181,7 @@ def main():
             trajectory_vector_data['color'] = '0xff0000'
 
             polygon_vector_pub.publish(polygon_vector_data)
-            linestring_pub.publish(boundary_data)    
+            # linestring_pub.publish(boundary_data)    
             trajectory_vector_pub.publish(trajectory_vector_data)
 
             if sim_step % log_interval == 0:

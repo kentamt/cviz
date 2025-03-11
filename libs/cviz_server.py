@@ -17,10 +17,10 @@ class CvizServer:
     Relay ZMQ messages to WebSocket clients. 
 
     127.0.0.1:5555 -> ZMQ Publisher and Subscriber
-    127.0.0.1:6789 -> WebSocket Server
+    127.0.0.1:8765 -> WebSocket Server
     """
         
-    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555", websocket_port=8675):
+    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555", websocket_port=8765):
         # subscriber setup
         # TODO: We want to add subscriber dynamically via GUI or API
         self.sub_list = []
