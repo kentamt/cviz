@@ -99,7 +99,7 @@ def main():
     linestring_pub = Publisher(topic_name="boundary", data_type='LineString')
     trajectory_vector_pub = Publisher(topic_name="trajectory_vector", data_type='LineStringVector')
     
-    num_agents = 100
+    num_agents = 50
     acceleration = 0.0 
     x_min, x_max, y_min, y_max = -1000, 1000, -1000, 1000
     models = []
@@ -150,7 +150,7 @@ def main():
 
                 # generate a trajectory from the past position
                 trajectory_queues[i].append({'x': x, 'y': y})
-                if len(trajectory_queues[i]) > 100:
+                if len(trajectory_queues[i]) > 50:
                     trajectory_queues[i].pop(0)
                 linestrings.append({"points" : trajectory_queues[i]})
 
@@ -187,7 +187,7 @@ def main():
             if sim_step % log_interval == 0:
                 logging.info(f"Step: {sim_step}")
 
-            time.sleep(1./60.)
+            time.sleep(1./40.)
             sim_step += 1
             
     except KeyboardInterrupt:
