@@ -150,7 +150,7 @@ def main():
 
                 # generate a trajectory from the past position
                 trajectory_queues[i].append({'x': x, 'y': y})
-                if len(trajectory_queues[i]) > 50:
+                if len(trajectory_queues[i]) > 20:
                     trajectory_queues[i].pop(0)
                 linestrings.append({"points" : trajectory_queues[i]})
 
