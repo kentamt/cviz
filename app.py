@@ -1,7 +1,10 @@
+import sys
+import os
 import logging
 import asyncio
 import json
 import time
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -105,32 +108,36 @@ class CvizServerManager:
 # Create a Cviz server manager instance
 cviz_manager = CvizServerManager()
 
-# Configure topics - this would be similar to what you have in cviz_example.py
-def setup_subscribers():
-    # Add the subscribers you need
+# Configure default topics for swarm example
+def setup_swarm_example():
     cviz_manager.add_subscriber(topic_name="polygon_vector")
     cviz_manager.add_subscriber(topic_name="boundary")
     cviz_manager.add_subscriber(topic_name="trajectory_vector")
-    
-    # You can add more subscribers as needed, similar to cviz_example.py
-    # cviz_manager.add_subscriber(topic_name="polygon_1")
-    # cviz_manager.add_subscriber(topic_name="point")
-    # etc.
 
 # Use lifespan to start and stop background tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Setup the subscribers
-    setup_subscribers()
+    setup_swarm_example()
     
-    # Start the tasks
+    # Start the task
     subscriber_tasks, broadcast_task = await cviz_manager.start()
-    logging.info("🚀 Started Cviz Server integration with FastAPI")
+    
+    # Run any startup scripts asynchronously
+    if Path("example/swarm_example.py").exists():
+        logging.info("🚀 Starting Swarm Simulator...")
+        # Create a subprocess using asyncio
+        proc = await asyncio.create_subprocess_shell(
+            f"{sys.executable} example/swarm_example.py",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        logging.info("🚀 Started Swarm Simulator")
     
     yield
     
     # Cleanup
-    logging.info("Shutting down Cviz Server integration...")
+    logging.info("Shutting down...")
     await cviz_manager.stop()
 
 # Create FastAPI app with lifespan
