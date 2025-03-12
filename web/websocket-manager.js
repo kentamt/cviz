@@ -31,7 +31,7 @@ export class WebSocketManager {
         Logger.log(`Using dynamic WebSocket URL: ${dynamicUrl}`);
 
         this.options = {
-            serverUrl: options.serverUrl || dynamicUrl,
+            serverUrl: dynamicUrl || options.serverUrl,
             maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
             historyLimits: { ...DEFAULT_HISTORY_LIMITS },
             rendererOptions: {},
