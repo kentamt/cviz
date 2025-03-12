@@ -2,7 +2,6 @@
 import { GeometryRenderer, Logger } from './geometry-renderer.js';
 
 // Default WebSocket settings
-const DEFAULT_SERVER_URL = "ws://127.0.0.1:8000/ws";
 const MAX_RECONNECT_ATTEMPTS = 5;
 const BASE_RECONNECT_TIMEOUT = 1000;  // 1 second
 
@@ -16,30 +15,23 @@ const DEFAULT_HISTORY_LIMITS = {
     LineStringVector: 1
 };
 
-// Add this extra check near the init function
+// Determine the WebSocket URL dynamically based on the current page location
 function getWebSocketUrl() {
-    // Try to determine the best WebSocket URL based on the environment
-    const hostname = window.location.hostname;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host; // Includes hostname and port if specified
     
-    // If we're accessing via localhost, also use localhost for WebSocket
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return `ws://${hostname}:8765`;
-    }
-    
-    // For Docker deployments, use the same hostname as the page
-    return `ws://${hostname}:8765`;
+    // Use the same host that's serving the web page, with the path to the WebSocket endpoint
+    return `${protocol}//${host}/ws`;
 }
-
 
 export class WebSocketManager {
     constructor(options = {}) {
-
         // Dynamically determine the WebSocket URL
         const dynamicUrl = getWebSocketUrl();
-        console.log(`Using dynamic WebSocket URL: ${dynamicUrl}`);
+        Logger.log(`Using dynamic WebSocket URL: ${dynamicUrl}`);
 
         this.options = {
-            serverUrl: DEFAULT_SERVER_URL,
+            serverUrl: options.serverUrl || dynamicUrl,
             maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
             historyLimits: { ...DEFAULT_HISTORY_LIMITS },
             rendererOptions: {},
@@ -110,6 +102,7 @@ export class WebSocketManager {
         
         document.getElementById('ws-status').textContent = status;
         document.getElementById('ws-attempts').textContent = this.reconnectAttempts;
+        document.getElementById('ws-url').textContent = this.options.serverUrl;
         
         if (error) {
             document.getElementById('ws-error').textContent = error;
@@ -179,25 +172,6 @@ export class WebSocketManager {
             
             return;
         }
-
-        // async function fetchWebSocketConfig() {
-        //     try {
-        //         const response = await fetch('/api/ws-config');
-        //         const config = await response.json();
-        //         console.log("Server provided WebSocket config:", config);
-        //         return config.websocket_url;
-        //     } catch (err) {
-        //         console.error("Error fetching WebSocket config:", err);
-        //         return DEFAULT_SERVER_URL;
-        //     }
-        // }
-        
-        // // Use this in your connection logic
-        // fetchWebSocketConfig().then(url => {
-        //     this.options.serverUrl = url;
-        //     this.connectWebSocket();
-        // });
-
 
         this.ws = null;
         this.reconnectAttempts = 0;
