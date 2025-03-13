@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cviz - Visualization Tool</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #1a1a1a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            color: #f0f0f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .navbar {
+            background-color: #222;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo-icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .demo-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .selector-label {
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+        
+        .demo-btn {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        
+        .demo-btn:hover {
+            background-color: #444;
+        }
+        
+        .demo-btn.active {
+            background-color: #120087;
+            border-color: #05045e;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.85rem;
+        }
+        
+        .indicator-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #444;
+        }
+        
+        .indicator-dot.connected {
+            background-color: #4CAF50;
+        }
+        
+        .indicator-dot.disconnected {
+            background-color: #F44336;
+        }
+        
+        .content-frame {
+            flex: 1;
+            border: none;
+            width: 100%;
+        }
+        
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            transition: opacity 0.3s;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #00aaff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtext {
+            font-size: 0.9rem;
+            color: #ccc;
+            max-width: 80%;
+            text-align: center;
+        }
+
+        .debug-panel {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+
+        .debug-panel pre {
+            margin: 0;
+            white-space: pre-wrap;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .debug-toggle {
+            position: fixed;
+            bottom: 10px;
+            right: 320px;
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">
+            <img src="assets/favicon.png" alt="Cviz Logo" class="logo-icon">
+            Cviz
+        </div>
+        <div class="demo-selector">
+            <span class="selector-label">Select Demo:</span>
+            <button id="canvas-demo-btn" class="demo-btn active">Canvas Demo</button>
+            <button id="map-demo-btn" class="demo-btn">Map Demo</button>
+        </div>
+        <div class="status-indicator">
+            <div id="connection-indicator" class="indicator-dot disconnected"></div>
+            <span id="status-text">Disconnected</span>
+        </div>
+    </div>
+    
+    <iframe id="demo-frame" class="content-frame" src="canvas-app.html"></iframe>
+    
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Demo...</div>
+        <div class="loading-subtext">Starting visualization server and simulation...</div>
+    </div>
+
+    <button id="debug-toggle" class="debug-toggle">Debug</button>
+    <div id="debug-panel" class="debug-panel" style="display: none;">
+        <h4 style="margin-top: 0;">Debug Info</h4>
+        <div>
+            <strong>Current Demo:</strong> <span id="current-demo">canvas</span>
+        </div>
+        <div>
+            <strong>WebSocket Status:</strong> <span id="ws-status">Disconnected</span>
+        </div>
+        <div>
+            <strong>Last Response:</strong>
+            <pre id="last-response">None</pre>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvasBtn = document.getElementById('canvas-demo-btn');
+            const mapBtn = document.getElementById('map-demo-btn');
+            const demoFrame = document.getElementById('demo-frame');
+            const connectionIndicator = document.getElementById('connection-indicator');
+            const statusText = document.getElementById('status-text');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const debugToggle = document.getElementById('debug-toggle');
+            const debugPanel = document.getElementById('debug-panel');
+            const currentDemoText = document.getElementById('current-demo');
+            const wsStatusText = document.getElementById('ws-status');
+            const lastResponseText = document.getElementById('last-response');
+            
+            let currentDemo = 'canvas';
+            let websocket = null;
+            let reconnectAttempts = 0;
+            let reconnectTimeout = null;
+            
+            // Debug panel toggle
+            debugToggle.addEventListener('click', function() {
+                debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+            });
+            
+            // Initialize WebSocket connection
+            function initWebSocket() {
+                // Close existing connection if any
+                if (websocket) {
+                    websocket.close();
+                }
+                
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                console.log(`Connecting to WebSocket at ${wsUrl}`);
+                wsStatusText.textContent = `Connecting to ${wsUrl}...`;
+                
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = function() {
+                    console.log('WebSocket connected');
+                    connectionIndicator.classList.remove('disconnected');
+                    connectionIndicator.classList.add('connected');
+                    statusText.textContent = 'Connected';
+                    wsStatusText.textContent = 'Connected';
+                    reconnectAttempts = 0;
+                    
+                    // Clear any pending reconnect
+                    if (reconnectTimeout) {
+                        clearTimeout(reconnectTimeout);
+                        reconnectTimeout = null;
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log(`WebSocket closed: ${event.code} - ${event.reason}`);
+                    connectionIndicator.classList.remove('connected');
+                    connectionIndicator.classList.add('disconnected');
+                    statusText.textContent = 'Disconnected';
+                    wsStatusText.textContent = `Closed: ${event.code} - ${event.reason || 'No reason'}`;
+                    
+                    // Try to reconnect after a delay with exponential backoff
+                    const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 10000);
+                    console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts + 1})`);
+                    
+                    reconnectAttempts++;
+                    reconnectTimeout = setTimeout(initWebSocket, delay);
+                };
+                
+                websocket.onerror = function(err) {
+                    console.error('WebSocket error:', err);
+                    statusText.textContent = 'Connection Error';
+                    wsStatusText.textContent = 'Error: ' + (err.message || 'Unknown error');
+                };
+                
+                // Handle messages from server
+                websocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('WebSocket message:', data);
+                        lastResponseText.textContent = JSON.stringify(data, null, 2);
+                        
+                        if (data.type === 'simulation_status') {
+                            if (data.status === 'started') {
+                                hideLoadingOverlay();
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing message:', e);
+                        lastResponseText.textContent = `Error parsing: ${e.message}\nRaw: ${event.data}`;
+                    }
+                };
+            }
+            
+            // Switch demo
+            async function switchDemo(demoType) {
+                if (demoType === currentDemo) return;
+                
+                showLoadingOverlay(`Loading ${demoType.charAt(0).toUpperCase() + demoType.slice(1)} Demo...`);
+                currentDemoText.textContent = demoType;
+                
+                try {
+                    console.log(`Requesting simulation change to ${demoType}`);
+                    // Tell the server to change the simulation
+                    const response = await fetch(`/change_simulation?type=${demoType}`, {
+                        method: 'POST'
+                    });
+                    
+                    const responseData = await response.json();
+                    console.log('Simulation change response:', responseData);
+                    lastResponseText.textContent = JSON.stringify(responseData, null, 2);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Server returned ${response.status}: ${responseData.message || 'Unknown error'}`);
+                    }
+                    
+                    // Update the iframe source with cache-busting parameter
+                    const timestamp = new Date().getTime();
+                    demoFrame.src = demoType === 'canvas' 
+                        ? `canvas-app.html?t=${timestamp}` 
+                        : `map-app.html?t=${timestamp}`;
+                    
+                    currentDemo = demoType;
+                    
+                    // Update active button state
+                    canvasBtn.classList.toggle('active', demoType === 'canvas');
+                    mapBtn.classList.toggle('active', demoType === 'map');
+                    
+                    // Re-initialize WebSocket connection
+                    if (websocket) {
+                        console.log('Closing current WebSocket connection for reconnection');
+                        websocket.close();
+                    }
+                    
+                    // Give a moment for server to reset the simulation
+                    setTimeout(() => {
+                        initWebSocket();
+                        console.log('WebSocket reinitialized');
+                    }, 1000);
+                    
+                    // Hide loading overlay after a delay to allow the iframe to load
+                    setTimeout(hideLoadingOverlay, 5000);
+                    
+                } catch (error) {
+                    console.error('Error changing simulation:', error);
+                    alert(`Failed to change simulation: ${error.message}`);
+                    hideLoadingOverlay();
+                    lastResponseText.textContent = `Error: ${error.message}`;
+                }
+            }
+            
+            function showLoadingOverlay(message = 'Loading Demo...', subMessage = 'Starting visualization server and simulation...') {
+                const loadingText = loadingOverlay.querySelector('.loading-text');
+                const loadingSubtext = loadingOverlay.querySelector('.loading-subtext');
+                
+                loadingText.textContent = message;
+                loadingSubtext.textContent = subMessage;
+                loadingOverlay.style.display = 'flex';
+                loadingOverlay.style.opacity = '1';
+            }
+            
+            function hideLoadingOverlay() {
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 300);
+            }
+            
+            // Event listeners
+            canvasBtn.addEventListener('click', () => switchDemo('canvas'));
+            mapBtn.addEventListener('click', () => switchDemo('map'));
+            
+            // Check server health initially
+            async function checkServerHealth() {
+                try {
+                    const response = await fetch('/health');
+                    const data = await response.json();
+                    console.log('Server health check:', data);
+                    if (data.current_demo) {
+                        currentDemo = data.current_demo;
+                        currentDemoText.textContent = currentDemo;
+                        canvasBtn.classList.toggle('active', currentDemo === 'canvas');
+                        mapBtn.classList.toggle('active', currentDemo === 'map');
+                    }
+                    return true;
+                } catch (error) {
+                    console.error('Health check failed:', error);
+                    return false;
+                }
+            }
+            
+            // Initialize
+            checkServerHealth().then(healthy => {
+                if (healthy) {
+                    initWebSocket();
+                } else {
+                    statusText.textContent = 'Server Unavailable';
+                }
+            });
+            
+            // Hide loading overlay after initial load
+            window.addEventListener('load', function() {
+                setTimeout(hideLoadingOverlay, 1500);
+            });
+        });
+    </script>
+</body>
+</html>

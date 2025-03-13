@@ -10,9 +10,9 @@ export class MapRenderer {
             initialZoom = 16,
             tileSize = 256,
             containerId = 'map-container',
-            tileServer = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+            // tileServer = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
             // satellite imagery
-            // tileServer = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            tileServer = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
             wsOptions = {}
         } = options;
 

@@ -171,7 +171,7 @@ def main():
             # polygon vector data                             
             polygon_vector_data = {'polygons': polygons}                 
             polygon_vector_data['life_time'] = 0
-            polygon_vector_data['history_limit'] = 1
+            polygon_vector_data['history_limit'] = 30
             polygon_vector_data['color'] = '0x00ffff'
 
             # trajectory vector data
@@ -190,7 +190,7 @@ def main():
             if sim_step % log_interval == 0:
                 logging.info(f"Step: {sim_step}")
 
-            time.sleep(1./40.)
+            time.sleep(1./60.)
             sim_step += 1
             
     except KeyboardInterrupt:

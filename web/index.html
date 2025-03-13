@@ -1,77 +1,48 @@
-<!-- map-app.html - For map-based application -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map-Based Visualization</title>
+    <title>Cviz - Visualization Tool</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <meta http-equiv="refresh" content="0;url=demo-selector.html">
     <style>
         body {
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
             margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #111;
         }
-        #map-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        
+        .loading {
+            text-align: center;
         }
-        #geometry-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #00aaff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div id="map-container"></div>
-    <div id="geometry-container"></div> 
-    <script type="module" src="map-app.js"></script>
+    <div class="loading">
+        <div class="spinner"></div>
+        <p>Loading Cviz Visualization Tool...</p>
+        <p><a href="demo-selector.html">Click here if not redirected automatically</a></p>
+    </div>
 </body>
 </html>
-
-
-<!-- canvas-app.html - For canvas-based application (no map) -->
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas-Based Visualization</title>
-    <link rel="icon" type="image/png" href="assets/favicon.png">
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #111;
-        }
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        #geometry-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-    </style>
-</head>
-<body>
-    <div id="pixi-container"></div>
-    
-    <script type="module" src="canvas-app.js"></script>
-</body>
-</html> -->

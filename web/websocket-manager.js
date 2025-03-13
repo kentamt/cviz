@@ -38,6 +38,13 @@ export class WebSocketManager {
             ...options
         };
 
+        // Connection status tracking
+        this.connectionStatus = "disconnected";
+        this.reconnectAttempts = 0;
+        this.reconnectTimer = null;
+        this.lastError = null;
+        this.messageCount = 0;
+        
         // Create debug element for connection status
         this.createDebugPanel();
 
@@ -76,9 +83,9 @@ export class WebSocketManager {
         // Add initial content
         debugPanel.innerHTML = `
             <div><strong>WebSocket Status:</strong> <span id="ws-status">Initializing...</span></div>
-            <div><strong>Connection URL:</strong> <span id="ws-url">${getWebSocketUrl()}</span></div>
+            <div><strong>Connection URL:</strong> <span id="ws-url">${this.options.serverUrl}</span></div>
             <div><strong>Connection Attempts:</strong> <span id="ws-attempts">0</span></div>
-            <div><strong>Network Info:</strong> <span id="ws-network">Checking...</span></div>
+            <div><strong>Messages Received:</strong> <span id="ws-messages">0</span></div>
             <div><strong>Last Error:</strong> <span id="ws-error">None</span></div>
             <button id="ws-test-btn" style="margin-top: 5px; padding: 2px 5px;">Test Connection</button>
         `;
@@ -102,50 +109,22 @@ export class WebSocketManager {
         
         document.getElementById('ws-status').textContent = status;
         document.getElementById('ws-attempts').textContent = this.reconnectAttempts;
-        // document.getElementById('ws-url').textContent = getWebSocketUrl();
-        document.getElementById('ws-url').textContent = getWebSocketUrl();
+        document.getElementById('ws-url').textContent = this.options.serverUrl;
+        document.getElementById('ws-messages').textContent = this.messageCount;
         
         if (error) {
             document.getElementById('ws-error').textContent = error;
             document.getElementById('ws-error').style.color = 'red';
         }
         
-        // Get network information
-        const networkInfo = [];
-        if (window.location && window.location.hostname) {
-            networkInfo.push(`Page host: ${window.location.hostname}:${window.location.port}`);
-        }
-        
-        // Check if running in Docker
-        fetch('/health')
-            .then(response => response.json())
-            .then(data => {
-                networkInfo.push(`Server health: ${data.status}`);
-                document.getElementById('ws-network').innerHTML = networkInfo.join('<br>');
-            })
-            .catch(err => {
-                networkInfo.push(`Server health check failed: ${err.message}`);
-                document.getElementById('ws-network').innerHTML = networkInfo.join('<br>');
-            });
+        this.connectionStatus = status;
+    }
+    
+    getConnectionStatus() {
+        return this.connectionStatus;
     }
     
     testConnection() {
-     /*    // Attempt to create a temporary WebSocket connection to test connectivity
-        const testWs = new WebSocket(getWebSocketUrl()); // getWebSocketUrl());
-        
-        testWs.onopen = () => {
-            Logger.log("Test connection succeeded!");
-            this.updateDebugPanel("Test connection successful");
-            testWs.close();
-        };
-        
-        testWs.onerror = (error) => {
-            Logger.error(`Test connection failed: ${error.message || "Unknown error"}`);
-            this.updateDebugPanel("Test connection failed", error.message || "Unknown error");
-        };
-        
-        this.updateDebugPanel("Testing connection..."); */
-
         // Attempt to create a temporary WebSocket connection to test connectivity
         this.updateDebugPanel("Testing connection...");
                 
@@ -155,18 +134,19 @@ export class WebSocketManager {
             .then(response => response.json())
             .then(data => {
                 Logger.log("Server health check succeeded:", data);
-                this.updateDebugPanel(`Connection test successful: ${JSON.stringify(data)}`);
+                this.updateDebugPanel(`Health: ${JSON.stringify(data)}`);
             })
             .catch(error => {
                 Logger.error(`Connection test failed: ${error.message || "Unknown error"}`);
                 this.updateDebugPanel("Connection test failed", error.message || "Unknown error");
             });
-
     }
 
     init() {
         try {
+            // Create geometry renderer
             this.renderer = new GeometryRenderer(this.options.rendererOptions);
+            Logger.log("Geometry renderer initialized successfully");
         } catch (error) {
             Logger.error(`Detailed renderer initialization error: ${error.message}`);
             Logger.error(`Error stack: ${error.stack}`);
@@ -188,6 +168,7 @@ export class WebSocketManager {
             `;
             document.body.appendChild(errorDiv);
             
+            this.updateDebugPanel("Renderer failed", error.message);
             return;
         }
 
@@ -214,8 +195,7 @@ export class WebSocketManager {
     logNetworkInfo() {
         Logger.log("--- Network Information ---");
         Logger.log(`Page URL: ${window.location.href}`);
-        // Logger.log(`WebSocket URL: ${getWebSocketUrl()}`);
-        Logger.log(`WebSocket URL: ${getWebSocketUrl()}`);
+        Logger.log(`WebSocket URL: ${this.options.serverUrl}`);
         Logger.log(`Navigator online: ${navigator.onLine}`);
         
         // Try to fetch the server health endpoint
@@ -232,11 +212,11 @@ export class WebSocketManager {
     }
 
     connectWebSocket() {
-        Logger.log(`Connecting to ${getWebSocketUrl()}...`);
+        Logger.log(`Connecting to ${this.options.serverUrl}...`);
         this.updateDebugPanel("Connecting...");
 
         try {
-            this.ws = new WebSocket(getWebSocketUrl());
+            this.ws = new WebSocket(this.options.serverUrl);
             
             // Track connection timeout
             const connectionTimeout = setTimeout(() => {
@@ -252,6 +232,13 @@ export class WebSocketManager {
                 Logger.log("WebSocket connected successfully!");
                 this.reconnectAttempts = 0;
                 this.updateDebugPanel("Connected");
+                this.connectionStatus = "connected";
+                
+                // Clear any existing reconnect timer
+                if (this.reconnectTimer) {
+                    clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
+                }
             };
 
             this.ws.onerror = (error) => {
@@ -267,21 +254,28 @@ export class WebSocketManager {
                 
                 Logger.error(`WebSocket detailed error: ${detailedError}`);
                 this.updateDebugPanel("Connection error", `${errorMsg} (${detailedError})`);
+                this.connectionStatus = "error";
+                this.lastError = errorMsg;
             };
 
             this.ws.onclose = (event) => {
                 clearTimeout(connectionTimeout);
                 Logger.warn(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason || "No reason provided"}`);
                 this.updateDebugPanel("Disconnected", `Code: ${event.code}, Reason: ${event.reason || "No reason"}`);
+                this.connectionStatus = "disconnected";
                 this.reconnect();
             };
 
             this.ws.onmessage = (event) => {
+                this.messageCount++;
+                document.getElementById('ws-messages').textContent = this.messageCount;
                 this.handleMessage(event);
             };
         } catch (error) {
             Logger.error(`WebSocket creation error: ${error.message}`);
             this.updateDebugPanel("Creation error", error.message);
+            this.connectionStatus = "error";
+            this.lastError = error.message;
             this.reconnect();
         }
     }
@@ -289,6 +283,10 @@ export class WebSocketManager {
     handleMessage(event) {
         try {
             const data = JSON.parse(event.data);
+            
+            // Update connection status
+            this.updateDebugPanel("Connected (receiving data)");
+            
             if (this.validateGeometryData(data)) {
                 this.processGeometryData(data);
             } else {
@@ -300,7 +298,11 @@ export class WebSocketManager {
     }
 
     processGeometryData(data) {
-        this.renderer.processGeometryData(data);
+        if (this.renderer) {
+            this.renderer.processGeometryData(data);
+        } else {
+            Logger.error("Renderer is not initialized");
+        }
     }
 
     validateGeometryData(data) {
@@ -336,8 +338,6 @@ export class WebSocketManager {
 
     validatePolygonVectorData(data) {
         return data.polygons && Array.isArray(data.polygons);
-        // TODO: Add polygon validation
-        // && data.polygons.points.length > 0;  # FIXME: This is not working
     }
 
     validatePointData(data) {
@@ -352,25 +352,37 @@ export class WebSocketManager {
     }
 
     validateLineStringVectorData(data) {
-        // TODO: Add line string vector validation
         return data.lines && Array.isArray(data.lines);
     }
     
     reconnect() {
         if (this.reconnectAttempts < this.options.maxReconnectAttempts) {
-            const timeout = BASE_RECONNECT_TIMEOUT * Math.pow(2, this.reconnectAttempts);
+            const timeout = BASE_RECONNECT_TIMEOUT * Math.pow(1.5, this.reconnectAttempts);
             
             Logger.warn(`Reconnecting in ${timeout/1000} seconds... (Attempt ${this.reconnectAttempts + 1})`);
-            this.updateDebugPanel(`Reconnecting in ${timeout/1000}s (${this.reconnectAttempts + 1}/${this.options.maxReconnectAttempts})`);
+            this.updateDebugPanel(`Reconnecting in ${(timeout/1000).toFixed(1)}s (${this.reconnectAttempts + 1}/${this.options.maxReconnectAttempts})`);
             
             this.reconnectAttempts++;
             
-            setTimeout(() => {
+            // Clear any existing timer
+            if (this.reconnectTimer) {
+                clearTimeout(this.reconnectTimer);
+            }
+            
+            this.reconnectTimer = setTimeout(() => {
                 this.connectWebSocket();
             }, timeout);
         } else {
             Logger.error("Max reconnection attempts reached. Please check the server.");
             this.updateDebugPanel("Failed - max attempts reached");
+            this.connectionStatus = "failed";
+            
+            // Try one more time after a longer delay
+            setTimeout(() => {
+                Logger.log("Trying one final reconnection attempt...");
+                this.reconnectAttempts = 0;
+                this.connectWebSocket();
+            }, 10000);
         }
     }
 }
