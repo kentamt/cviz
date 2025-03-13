@@ -299,8 +299,8 @@ export class GeometryRenderer {
                             geometry = this.drawPolygon(data.points, color, topic);
                             break;
                         case 'PolygonVector':
-                            geometry = this.drawPolygonVector(data.polygons, color, topic);
-                            // geometry = this.drawPolygonVector(data.polygons, "#0000ff", topic);
+                            // geometry = this.drawPolygonVector(data.polygons, color, topic);
+                            geometry = this.drawPolygonVector(data.polygons, "#0000ff", topic);
                             break;
                         case 'Point2d':
                             geometry = this.drawPoint(data.point, color, topic, radius);

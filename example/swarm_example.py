@@ -99,9 +99,9 @@ def main():
     linestring_pub = Publisher(topic_name="boundary", data_type='LineString')
     trajectory_vector_pub = Publisher(topic_name="trajectory_vector", data_type='LineStringVector')
     
-    num_agents = 50
+    num_agents = 100
     acceleration = 0.0 
-    x_min, x_max, y_min, y_max = -1000, 1000, -1000, 1000
+    x_min, x_max, y_min, y_max = -500, 500, -500, 500
     models = []
     for i in range(num_agents):
         x = random.uniform(x_min, x_max)
@@ -178,10 +178,13 @@ def main():
             trajectory_vector_data = {'lines': linestrings}
             trajectory_vector_data['life_time'] = 0
             trajectory_vector_data['history_limit'] = 1
-            trajectory_vector_data['color'] = '0xff0000'
+            trajectory_vector_data['color'] = '0x333333'
 
             polygon_vector_pub.publish(polygon_vector_data)
-            # linestring_pub.publish(boundary_data)    
+            
+            if sim_step % 100 == 0:            
+                linestring_pub.publish(boundary_data)    
+            
             trajectory_vector_pub.publish(trajectory_vector_data)
 
             if sim_step % log_interval == 0:

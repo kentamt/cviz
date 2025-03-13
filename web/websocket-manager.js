@@ -31,7 +31,7 @@ export class WebSocketManager {
         Logger.log(`Using dynamic WebSocket URL: ${dynamicUrl}`);
 
         this.options = {
-            serverUrl: dynamicUrl || options.serverUrl,
+            serverUrl: dynamicUrl,
             maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
             historyLimits: { ...DEFAULT_HISTORY_LIMITS },
             rendererOptions: {},
@@ -76,7 +76,7 @@ export class WebSocketManager {
         // Add initial content
         debugPanel.innerHTML = `
             <div><strong>WebSocket Status:</strong> <span id="ws-status">Initializing...</span></div>
-            <div><strong>Connection URL:</strong> <span id="ws-url">${this.options.serverUrl}</span></div>
+            <div><strong>Connection URL:</strong> <span id="ws-url">${getWebSocketUrl()}</span></div>
             <div><strong>Connection Attempts:</strong> <span id="ws-attempts">0</span></div>
             <div><strong>Network Info:</strong> <span id="ws-network">Checking...</span></div>
             <div><strong>Last Error:</strong> <span id="ws-error">None</span></div>
@@ -102,7 +102,8 @@ export class WebSocketManager {
         
         document.getElementById('ws-status').textContent = status;
         document.getElementById('ws-attempts').textContent = this.reconnectAttempts;
-        document.getElementById('ws-url').textContent = this.options.serverUrl;
+        // document.getElementById('ws-url').textContent = getWebSocketUrl();
+        document.getElementById('ws-url').textContent = getWebSocketUrl();
         
         if (error) {
             document.getElementById('ws-error').textContent = error;
@@ -129,8 +130,8 @@ export class WebSocketManager {
     }
     
     testConnection() {
-        // Attempt to create a temporary WebSocket connection to test connectivity
-        const testWs = new WebSocket(this.options.serverUrl);
+     /*    // Attempt to create a temporary WebSocket connection to test connectivity
+        const testWs = new WebSocket(getWebSocketUrl()); // getWebSocketUrl());
         
         testWs.onopen = () => {
             Logger.log("Test connection succeeded!");
@@ -143,7 +144,24 @@ export class WebSocketManager {
             this.updateDebugPanel("Test connection failed", error.message || "Unknown error");
         };
         
+        this.updateDebugPanel("Testing connection..."); */
+
+        // Attempt to create a temporary WebSocket connection to test connectivity
         this.updateDebugPanel("Testing connection...");
+                
+        // Send a ping request to the health endpoint instead of creating a WebSocket
+        // This avoids the WebSocketDisconnect error on the server
+        fetch('/health')
+            .then(response => response.json())
+            .then(data => {
+                Logger.log("Server health check succeeded:", data);
+                this.updateDebugPanel(`Connection test successful: ${JSON.stringify(data)}`);
+            })
+            .catch(error => {
+                Logger.error(`Connection test failed: ${error.message || "Unknown error"}`);
+                this.updateDebugPanel("Connection test failed", error.message || "Unknown error");
+            });
+
     }
 
     init() {
@@ -196,7 +214,8 @@ export class WebSocketManager {
     logNetworkInfo() {
         Logger.log("--- Network Information ---");
         Logger.log(`Page URL: ${window.location.href}`);
-        Logger.log(`WebSocket URL: ${this.options.serverUrl}`);
+        // Logger.log(`WebSocket URL: ${getWebSocketUrl()}`);
+        Logger.log(`WebSocket URL: ${getWebSocketUrl()}`);
         Logger.log(`Navigator online: ${navigator.onLine}`);
         
         // Try to fetch the server health endpoint
@@ -213,11 +232,11 @@ export class WebSocketManager {
     }
 
     connectWebSocket() {
-        Logger.log(`Connecting to ${this.options.serverUrl}...`);
+        Logger.log(`Connecting to ${getWebSocketUrl()}...`);
         this.updateDebugPanel("Connecting...");
 
         try {
-            this.ws = new WebSocket(this.options.serverUrl);
+            this.ws = new WebSocket(getWebSocketUrl());
             
             // Track connection timeout
             const connectionTimeout = setTimeout(() => {

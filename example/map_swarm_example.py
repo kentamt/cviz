@@ -80,7 +80,7 @@ def main():
     
     transformer = Transformer.from_crs("EPSG:32630", "EPSG:4326")
 
-    num_agents = 300
+    num_agents = 50
     acceleration = 0.0 
     
     x_min = 5000

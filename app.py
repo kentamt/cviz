@@ -6,6 +6,7 @@ import json
 import time
 from pathlib import Path
 from contextlib import asynccontextmanager
+from collections import defaultdict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
@@ -28,23 +29,53 @@ class CvizServerManager:
         self.last_time = {}
         self.running = False
         self.task = None
+        
+        # Message cache to store the latest message for each topic
+        # This ensures new clients can receive the current state immediately
+        self.message_cache = {}
+        
+        # Store geometry history per topic (for topics that need history)
+        self.geometry_history = defaultdict(list)
+        self.history_limits = defaultdict(lambda: 1)  # Default to keep only the latest message
     
-    def add_subscriber(self, topic_name):
-        """Add a new subscriber."""
+    def add_subscriber(self, topic_name, history_limit=1):
+        """Add a new subscriber with optional history retention."""
         new_sub = Subscriber(topic_name=topic_name)
         self.sub_list.append(new_sub)
+        self.history_limits[topic_name] = history_limit
         return new_sub
     
     async def register_client(self, websocket: WebSocket):
-        """Register a new WebSocket client"""
+        """Register a new WebSocket client and send cached data"""
         await websocket.accept()
         self.clients.add(websocket)
         logging.info(f"New WebSocket client connected. Total: {len(self.clients)}")
+        
+        # Send cached messages to the new client
+        await self.send_cached_messages_to_client(websocket)
+    
+    async def send_cached_messages_to_client(self, websocket: WebSocket):
+        """Send all cached messages to a newly connected client"""
+        try:
+            # Send the latest state for each topic
+            for topic, message in self.message_cache.items():
+                logging.info(f"Sending cached message for topic: {topic}")
+                await websocket.send_text(json.dumps(message))
+                
+            # For topics with history, send historical messages in order
+            for topic, messages in self.geometry_history.items():
+                for message in messages:
+                    await websocket.send_text(json.dumps(message))
+        except Exception as e:
+            logging.error(f"Error sending cached messages: {e}")
     
     def remove_client(self, websocket: WebSocket):
         """Remove a WebSocket client"""
-        self.clients.remove(websocket)
-        logging.info(f"Client disconnected. Remaining: {len(self.clients)}")
+        if websocket in self.clients:
+            self.clients.remove(websocket)
+            logging.info(f"Client disconnected. Remaining: {len(self.clients)}")
+        else:
+            logging.warning(f"Attempted to remove a client that wasn't registered")
     
     async def broadcast_messages(self):
         """Send messages from subscribers to all connected WebSocket clients"""
@@ -52,15 +83,28 @@ class CvizServerManager:
         
         try:
             while self.running:
-                if self.clients:
-                    for _sub in self.sub_list:
-                        topic = _sub.topic
-                        self.last_time[topic] = time.time()
-                        message = _sub.get_message()
+                for _sub in self.sub_list:
+                    topic = _sub.topic
+                    self.last_time[topic] = time.time()
+                    message = _sub.get_message()
+                    
+                    if message is not None:
+                        logging.info(f"Received message for topic: {topic}")
+                        websocket_message = json.dumps(message)
                         
-                        if message is not None:
-                            logging.info(f"Sending topic: {topic}")
-                            websocket_message = json.dumps(message)
+                        # Store in cache for new clients
+                        self.message_cache[topic] = message
+                        
+                        # Store in history for topics with history enabled
+                        if self.history_limits[topic] > 1:
+                            self.geometry_history[topic].append(message)
+                            # Maintain history limit
+                            while len(self.geometry_history[topic]) > self.history_limits[topic]:
+                                self.geometry_history[topic].pop(0)
+                        
+                        # Send to all connected clients
+                        if self.clients:
+                            logging.info(f"Broadcasting topic: {topic} to {len(self.clients)} clients")
                             
                             # Send to all connected clients
                             disconnected_clients = set()
@@ -74,9 +118,11 @@ class CvizServerManager:
                             # Remove any disconnected clients
                             for client in disconnected_clients:
                                 self.remove_client(client)
+                        else:
+                            logging.debug(f"No clients connected. Caching message for topic: {topic}")
                 
                 # Yield control to allow other async operations
-                await asyncio.sleep(0)
+                await asyncio.sleep(0.01)
                 
         except Exception as e:
             logging.error(f"Error in broadcast task: {e}")
@@ -110,9 +156,10 @@ cviz_manager = CvizServerManager()
 
 # Configure default topics for swarm example
 def setup_swarm_example():
+    # Add subscribers with history limits where needed
     cviz_manager.add_subscriber(topic_name="polygon_vector")
-    cviz_manager.add_subscriber(topic_name="boundary")
-    cviz_manager.add_subscriber(topic_name="trajectory_vector")
+    cviz_manager.add_subscriber(topic_name="boundary", history_limit=1)
+    cviz_manager.add_subscriber(topic_name="trajectory_vector", history_limit=1)
 
 # Use lifespan to start and stop background tasks
 @asynccontextmanager
@@ -124,11 +171,14 @@ async def lifespan(app: FastAPI):
     subscriber_tasks, broadcast_task = await cviz_manager.start()
     
     # Run any startup scripts asynchronously
-    if Path("example/swarm_example.py").exists():
+    # script_path = "example/swarm_example.py"
+    script_path = "example/map_swarm_example.py"
+
+    if Path(script_path).exists():
         logging.info("🚀 Starting Swarm Simulator...")
         # Create a subprocess using asyncio
         proc = await asyncio.create_subprocess_shell(
-            f"{sys.executable} example/swarm_example.py",
+            f"{sys.executable} {script_path}",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
