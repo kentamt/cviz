@@ -171,8 +171,8 @@ async def lifespan(app: FastAPI):
     subscriber_tasks, broadcast_task = await cviz_manager.start()
     
     # Run any startup scripts asynchronously
-    # script_path = "example/swarm_example.py"
-    script_path = "example/map_swarm_example.py"
+    script_path = "example/swarm_example.py"
+    # script_path = "example/map_swarm_example.py"
 
     if Path(script_path).exists():
         logging.info("🚀 Starting Swarm Simulator...")
