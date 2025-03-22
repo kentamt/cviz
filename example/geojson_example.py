@@ -1,184 +1,208 @@
 import math
-
-import numpy as np
 import time
 import random
 import logging
+import json
 
+import os
+import sys
 
-import os, sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from libs.publisher import Publisher
+from libs.geojson_helper import *
 from kinematic_model import KinematicBicycleModel
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
-
-def generate_rectangle(center_x=300, center_y=300, w=100, h=100, yaw=0):
-    """Generate a rectangle polygon with specified parameters."""
-    # points = [
-    #     {
-    #         'x': center_x + w * math.cos(yaw) - h * math.sin(yaw),
-    #         'y': center_y + w * math.sin(yaw) + h * math.cos(yaw)
-    #     },
-    #     {
-    #         'x': center_x - w * math.cos(yaw) - h * math.sin(yaw),
-    #         'y': center_y - w * math.sin(yaw) + h * math.cos(yaw)
-    #     },
-    #     {
-    #         'x': center_x - w * math.cos(yaw) + h * math.sin(yaw),
-    #         'y': center_y - w * math.sin(yaw) - h * math.cos(yaw)
-    #     },
-    #     {
-    #         'x': center_x + w * math.cos(yaw) + h * math.sin(yaw),
-    #         'y': center_y + w * math.sin(yaw) - h * math.cos(yaw)
-    #     }
-    # ]
-    
-    # GeoJSON format
-    points = [
-        [center_x + w * math.cos(yaw) - h * math.sin(yaw), center_y + w * math.sin(yaw) + h * math.cos(yaw)],
-        [center_x - w * math.cos(yaw) - h * math.sin(yaw), center_y - w * math.sin(yaw) + h * math.cos(yaw)],
-        [center_x - w * math.cos(yaw) + h * math.sin(yaw), center_y - w * math.sin(yaw) - h * math.cos(yaw)],
-        [center_x + w * math.cos(yaw) + h * math.sin(yaw), center_y + w * math.sin(yaw) - h * math.cos(yaw)],
-        [center_x + w * math.cos(yaw) - h * math.sin(yaw), center_y + w * math.sin(yaw) + h * math.cos(yaw)]
-    ]
-    
-    return points
-
-
-def generate_point(center_x=300, center_y=300, radius=30):
-    """Generate a random point near a center with specified radius."""
-    angle = random.uniform(0, 2 * math.pi)
-    distance = random.uniform(0, radius)
-    
-    return {
-        'x': center_x + distance * math.cos(angle),
-        'y': center_y + distance * math.sin(angle)
-    }
-
-
-
-# simulator main
 def main():
     """
-    GeoJSON format
-    {
-        "type": "FeatureCollection",
-        "features": [{
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [102.0, 0.5]
-            },
-            "properties": {
-                "prop0": "value0"
-            }
-        }, {
-            "type": "Feature",
-            "geometry": {
-                "type": "LineString",
-                "coordinates": [
-                    [102.0, 0.0],
-                    [103.0, 1.0],
-                    [104.0, 0.0],
-                    [105.0, 1.0]
-                ]
-            },
-            "properties": {
-                          "prop0": "value0",
-               "prop1": 0.0
-           }
-       }, {
-           "type": "Feature",
-           "geometry": {
-               "type": "Polygon",
-               "coordinates": [
-                   [
-                       [100.0, 0.0],
-                       [101.0, 0.0],
-                       [101.0, 1.0],
-                       [100.0, 1.0],
-                       [100.0, 0.0]
-                   ]
-               ]
-           },
-           "properties": {
-               "prop0": "value0",
-               "prop1": {
-                   "this": "that"
-               }
-           }
-       }]
-    }
+    Main simulation loop using GeoJSON format for all geometries
+    """
+    # Create publishers for different geometry types
+    polygon_pub = Publisher(topic_name="polygon", data_type="GeoJSON")
+    multipolygon_pub = Publisher(topic_name="multipolygon", data_type="GeoJSON")
+    point_pub = Publisher(topic_name="point", data_type="GeoJSON")
+    linestring_pub = Publisher(topic_name="linestring", data_type="GeoJSON")
+    multilinestring_pub = Publisher(topic_name="multilinestring", data_type="GeoJSON")
+    geometry_collection_pub = Publisher(topic_name="geometry_collection", data_type="GeoJSON")
+    feature_collection_pub = Publisher(topic_name="feature_collection", data_type="GeoJSON")
 
-    """    
+    # Set up kinematic models for multiple agents
+    num_agents = 3
+    acceleration = 0.0
+    x_min, x_max, y_min, y_max = -500, 500, -500, 500
 
-    polygon_vector_pub = Publisher(topic_name="multi_polygon", data_type='MultiPolygon')
-    
-    num_agents = 2
-    acceleration = 0.0 
-    x_min, x_max, y_min, y_max = -1000, 1000, -1000, 1000
+    # Initialize kinematic models
     models = []
     for i in range(num_agents):
         x = random.uniform(x_min, x_max)
         y = random.uniform(y_min, y_max)
         yaw = random.uniform(0, 2 * math.pi)
-        models.append(KinematicBicycleModel(x=x, y=y, v=10, yaw=yaw))
+        models.append(KinematicBicycleModel(x=x, y=y, v=30, yaw=yaw))
 
+    # Initialize state
+    trajectories = [[] for _ in range(num_agents)]
+    time.sleep(1)  # Small delay before starting simulation
 
-    time.sleep(1)
-    
-    print("🚀 Geometric Simulator Started")
+    print("🚀 GeoJSON Simulator Started")
     sim_step = 0
+
     try:
         while True:
+            # Create a feature collection to hold all geometries for this frame
+            feature_collection = create_feature_collection([])
 
-            
-            polygons = []
+            # 1. Create boundary as a LineString Feature
+            boundary_coordinates = [
+                [x_min, y_min],
+                [x_max, y_min],
+                [x_max, y_max],
+                [x_min, y_max],
+                [x_min, y_min]  # Close the boundary
+            ]
 
-            # evolve the model
-            polygons = {'type': 'MultiPolygon', 'coordinates': []}
+            boundary_properties = {
+                "type": "boundary",
+                "color": "#0055ff",
+                "lineWidth": 2
+            }
+
+            boundary_feature = create_linestring_feature(boundary_coordinates, boundary_properties)
+
+            # Publish boundary as separate LineString
+            linestring_pub.publish(boundary_feature)
+
+            # Add to feature collection
+            feature_collection["features"].append(boundary_feature)
+
+            # 2. Process each agent
+            agent_polygons = []
+
             for i in range(num_agents):
-
-                # update the model
+                # Update the model
                 model = models[i]
-                model.update(acceleration, random.uniform(-0.5, 0.5))
+                model.update(acceleration, random.uniform(-0.3, 0.3))
                 state = model.get_state()
                 x, y, yaw, v = state
 
-                # generate a rectangle polygon
-                polygons['coordinates'].append(
-                    generate_rectangle(x, y, w=5, h=2.5, yaw=yaw)
-                )
-         
-                # warp agents                       
+                # Generate a rectangle polygon for the agent
+                agent_coordinates = generate_rectangle_coordinates(x, y, w=15, h=10, yaw=yaw)
+
+                # Create GeoJSON polygon for this agent
+                agent_properties = {
+                    "id": f"agent_{i}",
+                    "type": "vehicle",
+                    "velocity": v,
+                    "yaw": yaw,
+                    "color": f"#{random.randint(0, 0xFFFFFF):06x}"
+                }
+
+                agent_feature = create_polygon_feature(agent_coordinates, agent_properties)
+
+                # Add to polygons collection and feature collection
+                agent_polygons.append(agent_feature)
+                feature_collection["features"].append(agent_feature)
+
+                # Add current position to the trajectory
+                trajectories[i].append([x, y])
+
+                # Limit trajectory length
+                if len(trajectories[i]) > 50:
+                    trajectories[i].pop(0)
+
+                # Create GeoJSON LineString for trajectory (if we have enough points)
+                if len(trajectories[i]) > 1:
+                    trajectory_properties = {
+                        "id": f"trajectory_{i}",
+                        "type": "trajectory",
+                        "color": "#333333",
+                        "lineWidth": 2
+                    }
+                    trajectory_feature = create_linestring_feature(trajectories[i], trajectory_properties)
+                    feature_collection["features"].append(trajectory_feature)
+
+                # Warp agents if they go outside the boundaries
                 if x > x_max:
                     models[i].state[0] = x_min
+                    trajectories[i] = []
                 if y > y_max:
                     models[i].state[1] = y_min
+                    trajectories[i] = []
                 if x < x_min:
                     models[i].state[0] = x_max
+                    trajectories[i] = []
                 if y < y_min:
                     models[i].state[1] = y_max
+                    trajectories[i] = []
 
-            # polygon vector data            
-            print(polygons)            
-            polygon_vector_pub.publish(polygons)
+                # Create a point for the agent's center
+                center_properties = {
+                    "id": f"center_{i}",
+                    "type": "center",
+                    "color": "#ff0000"
+                }
+                center_feature = create_point_feature([x, y], center_properties)
+                feature_collection["features"].append(center_feature)
 
-            logging.debug(f"Step: {sim_step}")
-            time.sleep(1./24.)
+            # 3. Create and publish a collection of agent polygons
+            multipolygon_collection = create_feature_collection(agent_polygons)
+            multipolygon_pub.publish(multipolygon_collection)
+
+            # 4. Generate random observation points (simulating sensor data)
+            if sim_step % 10 == 0:  # Only update points every 10 steps
+                # Create points as a MultiPoint feature
+                observation_points = []
+                for j in range(5):  # Create 5 random observation points
+                    observation_points.append(generate_random_point(
+                        center_x=models[0].state[0],
+                        center_y=models[0].state[1],
+                        radius=100
+                    ))
+
+                # Create individual point features for the feature collection
+                points_features = []
+                for j, point_coords in enumerate(observation_points):
+                    point_properties = {
+                        "id": f"observation_{j}",
+                        "type": "observation",
+                        "color": "#ffcc00"
+                    }
+                    point_feature = create_point_feature(point_coords, point_properties)
+                    points_features.append(point_feature)
+                    feature_collection["features"].append(point_feature)
+
+                # Also create a MultiPoint feature
+                multipoint_properties = {
+                    "type": "observations",
+                    "count": len(observation_points),
+                    "color": "#ffcc00"
+                }
+                multipoint_feature = create_multipoint_feature(observation_points, multipoint_properties)
+
+                # Publish both individual points and as a MultiPoint
+                point_pub.publish(create_feature_collection(points_features))
+                feature_collection["features"].append(multipoint_feature)
+
+            # 5. Publish individual polygon example (first agent)
+            if agent_polygons:
+                polygon_pub.publish(agent_polygons[0])
+
+            # 6. Publish the combined feature collection
+            feature_collection_pub.publish(feature_collection)
+
+            # Logging
+            if sim_step % 60 == 0:
+                logging.info(f"Simulation step: {sim_step}")
+
+            # Control simulation speed
+            time.sleep(1. / 30.)
             sim_step += 1
-            
+
     except KeyboardInterrupt:
         print("\n🛑 Simulator stopped")
     finally:
-        print("Cleanup")
+        print("Cleaning up...")
+
 
 if __name__ == "__main__":
     main()
-
-    
-    
-    
-    
