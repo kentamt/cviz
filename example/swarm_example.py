@@ -53,47 +53,15 @@ def generate_point(center_x=300, center_y=300, radius=30):
 # simulator main
 def main():
     """
-    PolygonVector:
     {
-        'polygons': [
-            {
-                'points': [
-                    {'x': 100, 'y': 100}, 
-                    {'x': 200, 'y': 100},
-                    {'x': 200, 'y': 200},
-                    {'x': 100, 'y': 200}
-                ]
-            },
-            {
-                'points': [
-                    {'x': 300, 'y': 300},
-                    {'x': 400, 'y': 300},
-                    {'x': 400, 'y': 400},
-                    {'x': 300, 'y': 400}
-                ]
-            }
-        ] 
+        "type": "Feature",
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [coordinates]  # Note: GeoJSON Polygons use an array of linear rings
+        },
+        "properties": properties
     }
     
-    LineStringVector:
-    {
-        lines: [
-            {
-                'points': [
-                    {'x': 100, 'y': 100}, 
-                    {'x': 200, 'y': 100},
-                    ...
-                ]
-            },
-            {
-                'points': [
-                    {'x': 100, 'y': 100}, 
-                    {'x': 200, 'y': 100},
-                    ...
-                ]
-            }
-        ]
-    }
     """    
     polygon_vector_pub = Publisher(topic_name="polygon_vector", data_type='PolygonVector')
     linestring_pub = Publisher(topic_name="boundary", data_type='LineString')
