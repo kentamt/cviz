@@ -355,16 +355,25 @@ export class GeometryRenderer {
             this.geometryContainers[type].removeChildren();
         });
 
+        // Reset the geometries arrays but keep the stored data
+        Object.keys(this.geometries).forEach(type => {
+            Object.keys(this.geometries[type]).forEach(topic => {
+                this.geometries[type][topic] = [];
+            });
+        });
+
         // Redraw each type of geometry
         Object.keys(this.geometryData).forEach(type => {
-            // topic loop
+            // Loop through each topic
             Object.keys(this.geometryData[type]).forEach(topic => {
+                // Redraw each saved geometry data
                 this.geometryData[type][topic].forEach(item => {
-                    let geometry;
                     const geoJSON = item.data;
                     const color = item.color;
-                    const topic = item.topic;
 
+                    let geometry;
+
+                    // Draw based on the GeoJSON type
                     switch (type) {
                         case 'Point':
                             geometry = this.drawGeoJSONPoint(geoJSON, color, topic);
@@ -395,18 +404,15 @@ export class GeometryRenderer {
                             break;
                     }
 
+                    // Add to the appropriate container and track it
                     if (geometry) {
-                        // this.addGeometry(type, geometry, topic);
-                        this.processGeometryData({data: geoJSON, topic});
+                        this.geometryContainers[type].addChild(geometry);
                         this.geometries[type][topic].push(geometry);
                     }
-
-                    this.manageGeometryHistory(type, topic);
                 });
             });
         });
     }
-
     // Drawing methods for GeoJSON types
 
     // Point: [longitude, latitude]
