@@ -4,25 +4,14 @@ Web-based visualisation tool for Python. Cviz has two visualisation modes: canva
 <table>
   <tr>
     <td>
-      <video src="https://github.com/user-attachments/assets/0bbb7911-3b68-49cb-8aa0-923fb4b55a2e" controls width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/294b6d65-13e6-4107-8e75-a9d15721a730" controls width="100%"></video>
     </td>
     <td>
-      <video src="https://github.com/user-attachments/assets/f1e7431e-fa74-42c8-94ed-3c19645f5573" controls width="100%"></video>
+      <video src="https://github.com/user-attachments/assets/d10e15f6-00d1-42fc-888f-335f79cc4044" controls width="100%"></video>
     </td>
   </tr>
 </table>
 
-
-<table>
-  <tr>
-    <td>
-      <video src="https://github.com/user-attachments/assets/78cd4763-3d5e-4d8d-a868-a443a2e0aeea" controls width="100%"></video>
-    </td>
-    <td>
-      <video src="https://github.com/user-attachments/assets/e8c191e0-3ce3-415d-8374-5a6815bdeb25" controls width="100%"></video>
-    </td>
-  </tr>
-</table>
 
 
 
