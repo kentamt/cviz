@@ -156,22 +156,41 @@ export class GeometryRenderer {
         // Get topic from data
         const topic = data.topic || 'default';
 
-        // Add life time to the geometry if specified
+
+         // Add life time to the geometry if specified
         if (data.life_time !== undefined) {
             this.lifeTimes[topic] = data.life_time;
+        } else if (geoJSON.properties && geoJSON.properties.life_time !== undefined) {
+            this.lifeTimes[topic] = geoJSON.properties.life_time;
         } else {
             this.lifeTimes[topic] = 0;  // no life time limit
         }
 
         // Add history limit to the geometry if specified
+        // First check top-level data
         if (data.history_limit !== undefined) {
             this.historyLimits[topic] = data.history_limit;
-        } else {
-            this.historyLimits[topic] = 1; // default to keep only the latest
+        }
+        // Then check GeoJSON properties
+        else if (geoJSON.properties && geoJSON.properties.history_limit !== undefined) {
+            this.historyLimits[topic] = geoJSON.properties.history_limit;
+        }
+        // For FeatureCollection, check the first feature's properties
+        else if (geoJSON.type === 'FeatureCollection' &&
+                geoJSON.features &&
+                geoJSON.features.length > 0 &&
+                geoJSON.features[0].properties &&
+                geoJSON.features[0].properties.history_limit !== undefined) {
+            this.historyLimits[topic] = geoJSON.features[0].properties.history_limit;
+        }
+        // Default to 1 if not specified anywhere
+        else {
+            this.historyLimits[topic] = 1;
         }
 
         // Process the GeoJSON data based on its type
         const geoJSONType = geoJSON.type;
+
 
         // Get color from properties or default to topic color
         let color;
@@ -254,6 +273,7 @@ export class GeometryRenderer {
         // Manage geometry history
         this.geometries[geoJSONType][topic].push(geometry);
         this.geometryData[geoJSONType][topic].push({data: geoJSON, color, topic});
+
         this.manageGeometryHistory(geoJSONType, topic);
     }
 
@@ -394,7 +414,7 @@ export class GeometryRenderer {
         if (!geoJSON.coordinates) return null;
 
         const coords = geoJSON.coordinates;
-        const radius = geoJSON.properties?.radius || 5;
+        const radius = geoJSON.properties?.radius || 2;
         const alpha = geoJSON.properties?.alpha || 0.8;
 
         const graphics = new PIXI.Graphics();

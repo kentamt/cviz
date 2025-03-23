@@ -190,7 +190,8 @@ def main():
                     "type": "vehicle",
                     "velocity": v,
                     "yaw": yaw,
-                    "color": agent_colors[i]
+                    "color": agent_colors[i],
+                    'history_limit': 1
                 }
 
                 agent_feature = create_polygon_feature(agent_coordinates, agent_properties)
@@ -246,7 +247,7 @@ def main():
             multipolygon_pub.publish(agent_collection)
 
             # 4. Generate random observation points (simulating sensor data)
-            if sim_step % 10 == 0:  # Only update points every 10 steps
+            if sim_step % 3 == 0:  # Only update points every 10 steps
                 # Create points as a MultiPoint feature
                 observation_points = []
                 for j in range(5):  # Create 5 random observation points
@@ -262,8 +263,8 @@ def main():
                     point_properties = {
                         "id": f"observation_{j}",
                         "type": "observation",
-                        # "color": "#ffcc00"
-                        "color": f"#{random.randint(0, 0xFFFFFF):06x}"
+                        "color": f"#{random.randint(0, 0xFFFFFF):06x}",
+                        "history_limit": 500
                     }
                     point_feature = create_point_feature(point_coords, point_properties)
                     points_features.append(point_feature)
@@ -273,7 +274,8 @@ def main():
                 multipoint_properties = {
                     "type": "observations",
                     "count": len(observation_points),
-                    "color": "#ffcc00"
+                    "color": "#ffcc00",
+                    "history_limit": "1"
                 }
                 multipoint_feature = create_multipoint_feature(observation_points, multipoint_properties)
 

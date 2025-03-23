@@ -274,6 +274,7 @@ export class WebSocketManager {
         try {
             const data = JSON.parse(event.data);
 
+
             // Check if this is a GeoJSON message
             if (this.isGeoJSONMessage(data)) {
                 this.processGeoJSONMessage(data);
@@ -535,7 +536,29 @@ export class WebSocketManager {
     }
 
     processGeoJSONMessage(data) {
-        this.renderer.processGeometryData(data);
+     // If we don't have GeoJSON data but have a regular message
+        if (!this.isGeoJSONMessage(data) && data) {
+            // Try to extract any top-level history_limit or life_time
+            const topLevelData = {
+                data_type: 'GeoJSON',
+                topic: data.topic,
+                geojson: data
+            };
+
+            // Copy history_limit if present at the top level
+            if (data.history_limit !== undefined) {
+                topLevelData.history_limit = data.history_limit;
+            }
+
+            // Copy life_time if present at the top level
+            if (data.life_time !== undefined) {
+                topLevelData.life_time = data.life_time;
+            }
+
+            this.renderer.processGeometryData(topLevelData);
+        } else {
+            this.renderer.processGeometryData(data);
+        }
     }
 
     reconnect() {

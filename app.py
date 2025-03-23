@@ -160,19 +160,12 @@ def setup_swarm_example():
     # cviz_manager.add_subscriber(topic_name="polygon_vector")
     # cviz_manager.add_subscriber(topic_name="boundary", history_limit=1)
     # cviz_manager.add_subscriber(topic_name="trajectory_vector", history_limit=1)
-    cviz_manager.add_subscriber(topic_name="polygon")
+    # cviz_manager.add_subscriber(topic_name="polygon")
     cviz_manager.add_subscriber(topic_name="multipolygon")
     cviz_manager.add_subscriber(topic_name="point")
-    cviz_manager.add_subscriber(topic_name="linestring")
-    cviz_manager.add_subscriber(topic_name="multilinestring")
-    cviz_manager.add_subscriber(topic_name="feature_collection")
-
-    # polygon_pub = Publisher(topic_name="polygon", data_type="GeoJSON")
-    # multipolygon_pub = Publisher(topic_name="multipolygon", data_type="GeoJSON")
-    # point_pub = Publisher(topic_name="point", data_type="GeoJSON")
-    # linestring_pub = Publisher(topic_name="linestring", data_type="GeoJSON")
-    # multilinestring_pub = Publisher(topic_name="multilinestring", data_type="GeoJSON")
-    # feature_collection_pub = Publisher(topic_name="feature_collection", data_type="GeoJSON")
+    # cviz_manager.add_subscriber(topic_name="linestring")
+    # cviz_manager.add_subscriber(topic_name="multilinestring")
+    # cviz_manager.add_subscriber(topic_name="feature_collection")
 
 
 
