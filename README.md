@@ -1,5 +1,5 @@
 # Cviz 
-Web-based visualisation tool for Python
+Web-based visualisation tool for Python. Cviz has two visualisation modes: canvas and Map. 
 
 <table>
   <tr>
@@ -26,80 +26,41 @@ Web-based visualisation tool for Python
 
 
 
-
-
-
-
-
-
-
-
 ## Data type
-- [x] Point2Da
-- [ ] PointCloud2D
-- [x] Polygon
-- [x] PolygonVector
+Cviz supports GeoJson format. See https://geojson.org/.
+
+- [ ] Position
+- [x] Point
+- [x] MultiPoint
 - [x] LineString
-- [ ] LineStringVector
-- [x] Text
-- [ ] TextVector
-- [ ] Arrow
-- [ ] ArrowVector
-- [ ] SVG
-- [ ] SVGVector
-- [ ] GridMap
+- [x] MultiLineString
+- [x] Polygon
+- [x] MultiPolygon
+- [ ] GeometryCollection
+- [ ] Antimeridian Cutting
+- [ ] Uncertainty and Precision 
+
+## Mapbox
+Cviz renders geometries based on Mapbox. You can use your own Mapbox token by replacing the placeholder in `map-app.js` with your token.
+```javascript
+ mapboxAccessToken = 'YOUR_MAPBOX_TOKEN';
+```
+
 
 ## Demo
-tested with Python3.12
+tested with Python3.12, 3.13
+
 ```bash
-pip install zmq json numpy 
+pip install zmq json numpy websockets
 npm install pixi.js
 ```
-
-Run simulator
+Run app:
 ```bash
-python example/polygon_publisher.py
+vicorn app:app --host 0.0.0.0 --reload --port 8000
 ```
 
-Run relay server 
-```bash
-python example/cviz_server.py
-```
-
-Run HTTP server
-```bash
-python -m http.server 8000 --directory web
-```
-
-Visit `localhost:8000`
+and visit `localhost:8000`
 
 ## How it works
 
-In your simulator:
-```python
-polygon_pub = Publisher(topic_name="polygon", data_type='Polygon')
-data = {'points': [{'x': 0, 'y':0}, ...]}
-polygon_pub.publish(data)
-```
-
-In Cviz server, add the topic you want to visualise:
-```python
-def main():
-    cviz = CvizServer()
-    cviz.add_subscriber(topic_name="polygon")
-    # cviz.add_subscriber(topic_name="point")
-    # cviz.add_subscriber(topic_name="linestring")
-    
-    try:
-        asyncio.run(cviz.start_server())
-    except KeyboardInterrupt:
-        logging.info("Server stopped")
-```
-
-## TODO
-- [ ] decay time
-- [ ] colour
-- [ ] add GUI to control topics
-- [ ] zoom and pan
-- [ ] lon, lat, map
-
+write something here

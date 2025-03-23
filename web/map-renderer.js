@@ -1,4 +1,4 @@
-// map-renderer.js
+// Complete fixed map-renderer.js
 import { MapboxRenderer, Logger } from './mapbox-renderer.js';
 import { WebSocketManager } from './websocket-manager.js';
 
@@ -13,30 +13,35 @@ export class MapRenderer {
             wsOptions = {}
         } = options;
 
-        // Create map container
+        // Create map container with proper styles
         this.container = document.getElementById(containerId);
         if (!this.container) {
             this.container = document.createElement('div');
             this.container.id = containerId;
-            this.container.style.width = '100%';
-            this.container.style.height = '100%';
             document.body.appendChild(this.container);
-        } else {
-            // Ensure the container has proper dimensions
-            this.container.style.width = '100%';
-            this.container.style.height = '100%';
         }
 
-        // Debug information panel
+        // Fix 1: Ensure container has proper styles for interaction
+        this.container.style.width = '100%';
+        this.container.style.height = '100%';
+        this.container.style.position = 'absolute';
+        this.container.style.top = '0';
+        this.container.style.left = '0';
+        this.container.style.pointerEvents = 'auto';
+        this.container.style.touchAction = 'manipulation';
+
+        // Simple debugging panel that won't interfere with map interactions
         this.debugInfo = document.createElement('div');
         this.debugInfo.style.position = 'absolute';
-        this.debugInfo.style.top = '10px';
+        this.debugInfo.style.bottom = '50px';
         this.debugInfo.style.left = '10px';
         this.debugInfo.style.background = 'rgba(0,0,0,0.7)';
         this.debugInfo.style.color = 'white';
         this.debugInfo.style.padding = '10px';
         this.debugInfo.style.fontFamily = 'monospace';
         this.debugInfo.style.zIndex = '1000';
+        this.debugInfo.style.pointerEvents = 'none'; // Critical: Don't block map events
+        this.debugInfo.innerHTML = '<div>Map initializing...</div>';
         document.body.appendChild(this.debugInfo);
 
         // Store map configuration
@@ -45,64 +50,153 @@ export class MapRenderer {
         this.mapStyle = mapStyle;
         this.mapboxToken = mapboxAccessToken;
 
-        // Initialize WebSocket manager with our Mapbox renderer
-        this.wsManager = new WebSocketManager({
-            ...wsOptions,
-            rendererOptions: {
-                containerId: 'geometry-container',
-                mapboxToken: this.mapboxToken,
-                initialCenter: this.initialCenter,
-                initialZoom: this.initialZoom,
-                mapStyle: this.mapStyle,
-                // Ensure this flag is set to use MapboxRenderer
-                useMapbox: true
-            }
-        });
+        // Fix 2: Add test button that we can click on/off the map to debug events
+        this.addTestButton();
 
-        // Store the Mapbox renderer instance
-        this.mapboxRenderer = this.wsManager.renderer;
+        // Fix 3: Initialize WebSocket and map with improved timing
+        this.initializeMapAndWebSocket(wsOptions);
+
+        // Setup keyboard events for zooming
+        this.setupKeyboardControls();
 
         // Set up window resize handler
         window.addEventListener('resize', () => {
             this.resize();
         });
-
-        // Setup keyboard events for zooming
-        this.setupKeyboardControls();
-
-        // Update debug information
-        this.updateDebugInfo();
     }
 
-    resize() {
-        // Mapbox handles resizing automatically for the most part,
-        // but we can trigger a map resize event if needed
+    addTestButton() {
+        // Create a non-interfering test button outside the map
+        const testButton = document.createElement('button');
+        testButton.textContent = "Test Map";
+        testButton.style.position = 'absolute';
+        testButton.style.top = '10px';
+        testButton.style.left = '10px';
+        testButton.style.zIndex = '1001';
+        testButton.style.padding = '5px 10px';
+        testButton.style.backgroundColor = '#0078ff';
+        testButton.style.color = 'white';
+        testButton.style.border = 'none';
+        testButton.style.borderRadius = '3px';
+        testButton.style.cursor = 'pointer';
+
+        testButton.addEventListener('click', () => {
+            if (this.mapboxRenderer && this.mapboxRenderer.map) {
+                const center = this.mapboxRenderer.map.getCenter();
+                const zoom = this.mapboxRenderer.map.getZoom();
+
+                // Programmatically move the map to verify API works
+                this.mapboxRenderer.map.flyTo({
+                    center: [center.lng + 0.01, center.lat + 0.01],
+                    zoom: zoom,
+                    speed: 0.5,
+                    curve: 1,
+                    essential: true // Indicates the map movement is considered essential
+                });
+
+                this.debugInfo.innerHTML = `
+                    <div>Map test initiated!</div>
+                    <div>Previous center: [${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}]</div>
+                    <div>New center: [${(center.lng + 0.01).toFixed(4)}, ${(center.lat + 0.01).toFixed(4)}]</div>
+                `;
+
+                // Log interaction capabilities
+                if (this.mapboxRenderer && this.mapboxRenderer.map) {
+                    const map = this.mapboxRenderer.map;
+                    const dragEnabled = map.dragPan && map.dragPan.isEnabled();
+                    const zoomEnabled = map.scrollZoom && map.scrollZoom.isEnabled();
+
+                    this.debugInfo.innerHTML += `
+                        <div>Drag enabled: ${dragEnabled ? 'Yes' : 'No'}</div>
+                        <div>Zoom enabled: ${zoomEnabled ? 'Yes' : 'No'}</div>
+                    `;
+                }
+            }
+        });
+
+        document.body.appendChild(testButton);
+    }
+
+    initializeMapAndWebSocket(wsOptions) {
+        // Initialize WebSocket manager with our Mapbox renderer options
+        const rendererOptions = {
+            containerId: 'map-container', // Use the same container for map
+            mapboxToken: this.mapboxToken,
+            initialCenter: this.initialCenter,
+            initialZoom: this.initialZoom,
+            mapStyle: this.mapStyle,
+            useMapbox: true  // Ensure this flag is set to use MapboxRenderer
+        };
+
+        // Create the MapboxRenderer first
+        try {
+            // Create renderer directly instead of through WebSocketManager
+            this.mapboxRenderer = new MapboxRenderer(rendererOptions);
+
+            // Wait for the map to be ready before setting up WebSocket
+            if (this.mapboxRenderer.map) {
+                this.mapboxRenderer.map.once('load', () => {
+                    this.onMapLoaded();
+
+                    // Now initialize the WebSocket manager
+                    this.wsManager = new WebSocketManager({
+                        ...wsOptions,
+                        rendererOptions: {
+                            ...rendererOptions,
+                            mapInstance: this.mapboxRenderer.map // Pass the map instance
+                        }
+                    });
+                });
+
+                // Also check if map is already loaded
+                if (this.mapboxRenderer.map.loaded()) {
+                    this.onMapLoaded();
+                }
+            }
+        } catch (error) {
+            console.error("Error initializing map:", error);
+            this.debugInfo.innerHTML = `<div>Error: ${error.message}</div>`;
+        }
+    }
+
+    onMapLoaded() {
+        // Map is loaded and ready
+        this.debugInfo.innerHTML = '<div>Map loaded!</div>';
+
+        // Verify that map interaction handlers are enabled
         if (this.mapboxRenderer && this.mapboxRenderer.map) {
-            this.mapboxRenderer.map.resize();
+            const map = this.mapboxRenderer.map;
+
+            // Explicitly enable interaction handlers
+            if (map.dragPan && !map.dragPan.isEnabled()) {
+                map.dragPan.enable();
+                console.log("Explicitly enabled drag pan");
+            }
+
+            if (map.scrollZoom && !map.scrollZoom.isEnabled()) {
+                map.scrollZoom.enable();
+                console.log("Explicitly enabled scroll zoom");
+            }
+
+            // Get current interaction state
+            const dragEnabled = map.dragPan && map.dragPan.isEnabled();
+            const zoomEnabled = map.scrollZoom && map.scrollZoom.isEnabled();
+
+            // Update debug info
+            this.debugInfo.innerHTML += `
+                <div>Drag enabled: ${dragEnabled ? 'Yes' : 'No'}</div>
+                <div>Zoom enabled: ${zoomEnabled ? 'Yes' : 'No'}</div>
+            `;
+
+            // Update debug info on map move events
+            map.on('move', () => {
+                this.updateDebugInfo();
+            });
         }
     }
 
-    // Update debug information
-    updateDebugInfo() {
-        if (!this.mapboxRenderer || !this.mapboxRenderer.map) {
-            this.debugInfo.innerHTML = "<div>Map not initialized yet</div>";
-            return;
-        }
-
-        const center = this.mapboxRenderer.map.getCenter();
-        const zoom = this.mapboxRenderer.map.getZoom();
-        const bounds = this.mapboxRenderer.map.getBounds();
-
-        this.debugInfo.innerHTML = `
-            <div>Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}</div>
-            <div>Zoom: ${zoom.toFixed(2)}</div>
-            <div>Bounds: [${bounds.getWest().toFixed(2)}, ${bounds.getSouth().toFixed(2)}, 
-                       ${bounds.getEast().toFixed(2)}, ${bounds.getNorth().toFixed(2)}]</div>
-        `;
-    }
-
-    // Setup keyboard controls for zooming, panning, etc.
     setupKeyboardControls() {
+        // Set up keyboard controls for map navigation
         document.addEventListener('keydown', (e) => {
             // Don't do anything if the map is not initialized
             if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
@@ -123,33 +217,76 @@ export class MapRenderer {
             if (e.key === 'r') {
                 this.resetView();
             }
+
+            // Add arrow keys for direct panning
+            const panAmount = 100; // pixels to pan
+
+            if (e.key === 'ArrowLeft') {
+                this.mapboxRenderer.map.panBy([-panAmount, 0], { animate: true });
+            }
+            if (e.key === 'ArrowRight') {
+                this.mapboxRenderer.map.panBy([panAmount, 0], { animate: true });
+            }
+            if (e.key === 'ArrowUp') {
+                this.mapboxRenderer.map.panBy([0, -panAmount], { animate: true });
+            }
+            if (e.key === 'ArrowDown') {
+                this.mapboxRenderer.map.panBy([0, panAmount], { animate: true });
+            }
         });
     }
 
-    // Add a debug marker at specific coordinates
-    addDebugMarker(lng, lat, color = '#ff0000') {
-        if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
-
-        this.mapboxRenderer.addDebugMarker(lng, lat, color);
-        console.log(`Debug marker added at [${lng}, ${lat}]`);
+    resize() {
+        // Resize the map when the window size changes
+        if (this.mapboxRenderer && this.mapboxRenderer.map) {
+            this.mapboxRenderer.map.resize();
+            console.log("Resized map");
+        }
     }
 
-    // Reset the map view to the initial settings
+    updateDebugInfo() {
+        // Don't update if map isn't initialized
+        if (!this.mapboxRenderer || !this.mapboxRenderer.map) {
+            this.debugInfo.innerHTML = "<div>Map not initialized yet</div>";
+            return;
+        }
+
+        const center = this.mapboxRenderer.map.getCenter();
+        const zoom = this.mapboxRenderer.map.getZoom();
+        const bounds = this.mapboxRenderer.map.getBounds();
+
+        // Get interaction state
+        const dragEnabled = this.mapboxRenderer.map.dragPan &&
+                           this.mapboxRenderer.map.dragPan.isEnabled() ?
+                           "Yes" : "No";
+        const zoomEnabled = this.mapboxRenderer.map.scrollZoom &&
+                           this.mapboxRenderer.map.scrollZoom.isEnabled() ?
+                           "Yes" : "No";
+
+        this.debugInfo.innerHTML = `
+            <div>Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}</div>
+            <div>Zoom: ${zoom.toFixed(2)}</div>
+            <div>Drag: ${dragEnabled}</div>
+            <div>Zoom: ${zoomEnabled}</div>
+        `;
+    }
+
     resetView() {
+        // Reset the view to initial center and zoom
         if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
 
         this.mapboxRenderer.map.flyTo({
             center: this.initialCenter,
             zoom: this.initialZoom,
-            essential: true
+            essential: true // This makes the animation happen even if user interaction is disabled
         });
 
-        console.log("Map view reset to initial state");
+        console.log("Reset view to initial state");
         this.updateDebugInfo();
     }
 
-    // Center the map on specific coordinates
     centerOn(lng, lat, zoom = null) {
+        // Center the map on specific coordinates
         if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
 
         this.mapboxRenderer.map.flyTo({
@@ -158,7 +295,16 @@ export class MapRenderer {
             essential: true
         });
 
-        console.log(`Map centered on [${lng}, ${lat}]`);
+        console.log(`Centered map on [${lng}, ${lat}]`);
         this.updateDebugInfo();
+    }
+
+    addDebugMarker(lng, lat, color = '#ff0000') {
+        // Add a visible marker to the map for debugging
+        if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
+
+        // Let the renderer add the actual marker
+        this.mapboxRenderer.addDebugMarker(lng, lat, color);
+        console.log(`Added debug marker at [${lng}, ${lat}]`);
     }
 }

@@ -1,3 +1,4 @@
+// Fixed mapbox-renderer.js
 import 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js';
 
 // Configuration for topic-specific styling
@@ -53,10 +54,17 @@ export class MapboxRenderer {
         if (!this.container) {
             this.container = document.createElement('div');
             this.container.id = containerId;
-            this.container.style.width = '100%';
-            this.container.style.height = '100%';
             document.body.appendChild(this.container);
         }
+
+        // Fix 1: Ensure container has proper CSS for interaction
+        this.container.style.width = '100%';
+        this.container.style.height = '100%';
+        this.container.style.position = 'absolute';
+        this.container.style.top = '0';
+        this.container.style.left = '0';
+        this.container.style.pointerEvents = 'auto';
+        this.container.style.touchAction = 'manipulation';
 
         // Set Mapbox access token if not already set
         if (mapboxToken && mapboxToken.length > 0) {
@@ -67,36 +75,41 @@ export class MapboxRenderer {
 
         Logger.log(`Initializing map with token: ${window.mapboxgl.accessToken.substring(0, 10)}...`);
 
-        // Create Mapbox map instance
+        // Fix 2: Create Mapbox map with explicit interaction options
         try {
+            // Use a simple configuration first without custom handlers
             this.map = new window.mapboxgl.Map({
                 container: containerId,
                 style: mapStyle,
                 center: initialCenter,
                 zoom: initialZoom,
-                antialias: true,
-                dragRotate: false, // Disable rotation for simpler navigation
-                touchZoomRotate: true,
-                dragPan: true, // Explicitly enable drag panning
-                interactive: true // Make sure the map is interactive
+                attributionControl: false,  // We'll add this manually later
+                interactive: true           // Most important flag for all interactions
             });
 
-            // Add navigation controls
-            this.map.addControl(new window.mapboxgl.NavigationControl());
+            // Fix 3: Add interactive controls after basic initialization
+            this.map.dragPan.enable();
+            this.map.scrollZoom.enable();
+            this.map.doubleClickZoom.enable();
+            this.map.touchZoomRotate.enable();
+
+            // Add a visible attribution control
+            this.map.addControl(new window.mapboxgl.AttributionControl({
+                compact: true
+            }), 'bottom-right');
+
+            // Add navigation controls (zoom buttons)
+            this.map.addControl(new window.mapboxgl.NavigationControl(), 'top-right');
 
             // Add scale control
             this.map.addControl(new window.mapboxgl.ScaleControl({
                 maxWidth: 100,
                 unit: 'metric'
-            }));
+            }), 'bottom-left');
 
-            // Add custom zoom controls
-            //  this.addCustomZoomControls();
-
-            // Make cursor show as pointer when hovering over map to indicate it's draggable
+            // Fix 4: Improved cursor feedback
             this.map.getCanvas().style.cursor = 'grab';
 
-            // Change cursor on mouse down/up
             this.map.on('mousedown', () => {
                 this.map.getCanvas().style.cursor = 'grabbing';
             });
@@ -110,6 +123,9 @@ export class MapboxRenderer {
             throw error;
         }
 
+        // Fix 5: Add debug panel to verify map status
+        this.addDebugPanel();
+
         // Track sources and layers
         this.sources = {}; // Sources added to the map
         this.layers = {};  // Layers added to the map
@@ -117,26 +133,123 @@ export class MapboxRenderer {
         this.historyLimits = {}; // Store history limits for topics
         this.lifeTimes = {};  // Store lifetime for topics
 
-        // Wait for map to load before allowing operations
-        this.map.on('load', () => {
-            Logger.log('Mapbox map loaded');
-            this.mapLoaded = true;
-
-            // Add empty sources for different geometry types
-            this.initializeSources();
-
-            // Register map events
-            this.registerMapEvents();
-
-            // Log map capabilities and state
-            Logger.log(`Map initialized with drag capabilities: ${this.map.dragPan.isEnabled()}`);
-            Logger.log(`Map initialized with zoom capabilities: ${this.map.scrollZoom.isEnabled()}`);
-        });
+        // Fix 6: More robust loading event handling
+        if (this.map.loaded()) {
+            // Map already loaded, initialize now
+            this.onMapLoaded();
+        } else {
+            // Wait for map to load before continuing initialization
+            this.map.on('load', () => {
+                this.onMapLoaded();
+            });
+        }
 
         // Log any errors that occur
         this.map.on('error', (e) => {
             Logger.error('Mapbox map error:', e.error);
+            if (this.debugPanel) {
+                this.debugPanel.innerHTML += `<br>Error: ${e.error.message || 'Unknown'}`;
+            }
         });
+    }
+
+    // Fix 7: Centralized loading handler for better timing control
+    onMapLoaded() {
+        Logger.log('Mapbox map loaded');
+        this.mapLoaded = true;
+
+        // Add empty sources for different geometry types
+        this.initializeSources();
+
+        // Register map events
+        this.registerMapEvents();
+
+        // Verify interaction handlers are enabled
+        this.verifyInteractionHandlers();
+
+        // Log map capabilities and state
+        Logger.log(`Map initialized with drag capabilities: ${this.map.dragPan.isEnabled()}`);
+        Logger.log(`Map initialized with zoom capabilities: ${this.map.scrollZoom.isEnabled()}`);
+
+        // Update debug panel
+        this.updateDebugPanel();
+    }
+
+    // Fix 8: Add debug panel to verify map status
+    addDebugPanel() {
+        this.debugPanel = document.createElement('div');
+        this.debugPanel.style.position = 'absolute';
+        this.debugPanel.style.bottom = '10px';
+        this.debugPanel.style.right = '10px';
+        this.debugPanel.style.backgroundColor = 'rgba(0,0,0,0.7)';
+        this.debugPanel.style.color = 'white';
+        this.debugPanel.style.padding = '5px';
+        this.debugPanel.style.borderRadius = '3px';
+        this.debugPanel.style.fontSize = '12px';
+        this.debugPanel.style.fontFamily = 'monospace';
+        this.debugPanel.style.zIndex = '1000';
+        this.debugPanel.style.pointerEvents = 'none'; // Don't interfere with map
+        this.debugPanel.innerHTML = 'Map initializing...';
+        document.body.appendChild(this.debugPanel);
+
+        // Update on map move
+        if (this.map) {
+            this.map.on('move', () => {
+                this.updateDebugPanel();
+            });
+        }
+    }
+
+    // Update debug panel with current map state
+    updateDebugPanel() {
+        if (!this.debugPanel || !this.map) return;
+
+        const center = this.map.getCenter();
+        const zoom = this.map.getZoom();
+
+        let dragStatus = "unknown";
+        let zoomStatus = "unknown";
+
+        if (this.map.dragPan) {
+            dragStatus = this.map.dragPan.isEnabled() ? "enabled" : "disabled";
+        }
+
+        if (this.map.scrollZoom) {
+            zoomStatus = this.map.scrollZoom.isEnabled() ? "enabled" : "disabled";
+        }
+
+        this.debugPanel.innerHTML = `
+            Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}<br>
+            Zoom: ${zoom.toFixed(2)}<br>
+            Drag: ${dragStatus}<br>
+            Scroll: ${zoomStatus}
+        `;
+    }
+
+    // Fix 9: Verify interaction handlers are enabled
+    verifyInteractionHandlers() {
+        if (!this.map) return;
+
+        // Ensure dragPan is enabled
+        if (this.map.dragPan && !this.map.dragPan.isEnabled()) {
+            Logger.warn("DragPan was disabled, enabling it");
+            this.map.dragPan.enable();
+        }
+
+        // Ensure scrollZoom is enabled
+        if (this.map.scrollZoom && !this.map.scrollZoom.isEnabled()) {
+            Logger.warn("ScrollZoom was disabled, enabling it");
+            this.map.scrollZoom.enable();
+        }
+
+        // Ensure doubleClickZoom is enabled
+        if (this.map.doubleClickZoom && !this.map.doubleClickZoom.isEnabled()) {
+            Logger.warn("DoubleClickZoom was disabled, enabling it");
+            this.map.doubleClickZoom.enable();
+        }
+
+        // Update the debug panel
+        this.updateDebugPanel();
     }
 
     initializeSources() {
@@ -164,57 +277,6 @@ export class MapboxRenderer {
             // Add empty layers for this source based on geometry type
             this.addLayersForGeometryType(type, sourceId);
         });
-    }
-
-     addCustomZoomControls() {
-        // Create a container for custom controls
-        const controlContainer = document.createElement('div');
-        controlContainer.className = 'mapboxgl-ctrl mapboxgl-ctrl-group custom-zoom-controls';
-        controlContainer.style.margin = '10px';
-        controlContainer.style.padding = '0';
-        controlContainer.style.backgroundColor = 'white';
-        controlContainer.style.borderRadius = '4px';
-        controlContainer.style.cursor = 'pointer';
-        controlContainer.style.boxShadow = '0 0 10px rgba(0,0,0,0.1)';
-
-        // Zoom in button
-        const zoomInBtn = document.createElement('button');
-        zoomInBtn.innerHTML = '<strong>+</strong>';
-        zoomInBtn.style.width = '30px';
-        zoomInBtn.style.height = '30px';
-        zoomInBtn.style.border = 'none';
-        zoomInBtn.style.borderBottom = '1px solid #ddd';
-        zoomInBtn.style.backgroundColor = 'white';
-        zoomInBtn.style.cursor = 'pointer';
-        zoomInBtn.title = 'Zoom In (or press + key)';
-        zoomInBtn.addEventListener('click', () => {
-            this.map.zoomIn();
-        });
-
-        // Zoom out button
-        const zoomOutBtn = document.createElement('button');
-        zoomOutBtn.innerHTML = '<strong>-</strong>';
-        zoomOutBtn.style.width = '30px';
-        zoomOutBtn.style.height = '30px';
-        zoomOutBtn.style.border = 'none';
-        zoomOutBtn.style.backgroundColor = 'white';
-        zoomOutBtn.style.cursor = 'pointer';
-        zoomOutBtn.title = 'Zoom Out (or press - key)';
-        zoomOutBtn.addEventListener('click', () => {
-            this.map.zoomOut();
-        });
-
-        // Add buttons to container
-        controlContainer.appendChild(zoomInBtn);
-        controlContainer.appendChild(zoomOutBtn);
-
-        // Add custom control to map
-        this.map.getContainer().appendChild(controlContainer);
-
-        // Position the custom control in the top-right
-        controlContainer.style.position = 'absolute';
-        controlContainer.style.top = '80px';  // Below the default navigation control
-        controlContainer.style.right = '10px';
     }
 
     addLayersForGeometryType(type, sourceId) {
@@ -254,7 +316,7 @@ export class MapboxRenderer {
             source: sourceId,
             filter: ['==', '$type', 'Point'],
             paint: {
-                'circle-radius': ['coalesce', ['get', 'radius'], 5],
+                'circle-radius': ['coalesce', ['get', 'radius'], 3],
                 'circle-color': ['coalesce', ['get', 'color'], TOPIC_STYLES.default.Point],
                 'circle-opacity': ['coalesce', ['get', 'opacity'], 0.8]
             }
@@ -351,7 +413,7 @@ export class MapboxRenderer {
         });
 
         this.map.on('mouseleave', Object.values(this.layers).flat(), () => {
-            this.map.getCanvas().style.cursor = '';
+            this.map.getCanvas().style.cursor = 'grab';
         });
 
         // Log click events on features
@@ -362,19 +424,32 @@ export class MapboxRenderer {
             }
         });
 
-        // Log map move events
-        this.map.on('moveend', () => {
-            const center = this.map.getCenter();
-            const zoom = this.map.getZoom();
-            Logger.debug(`Map moved to [${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}] at zoom ${zoom.toFixed(2)}`);
+        // Fix 10: Add specific handlers for drag events to verify they're working
+        this.map.on('dragstart', () => {
+            Logger.debug('Drag started');
+            if (this.debugPanel) {
+                this.debugPanel.innerHTML += '<br>Dragging...';
+            }
+        });
+
+        this.map.on('dragend', () => {
+            Logger.debug('Drag ended');
+            this.updateDebugPanel();
+        });
+
+        this.map.on('zoom', () => {
+            Logger.debug('Zoom event');
+            this.updateDebugPanel();
         });
     }
 
     // Process GeoJSON data and add it to the map
     processGeometryData(data) {
-        if (!this.mapLoaded) {
+        // Fix 11: More robust check for map readiness
+        if (!this.map || !this.mapLoaded) {
             Logger.warn('Map not loaded yet, deferring geometry processing');
-            setTimeout(() => this.processGeometryData(data), 100);
+            // Queue the data processing for when the map is ready
+            setTimeout(() => this.processGeometryData(data), 200);
             return;
         }
 
@@ -519,7 +594,11 @@ export class MapboxRenderer {
     }
 
     updateMapSource(type) {
-        if (!this.mapLoaded || !this.sources[type]) return;
+        // Fix 12: More robust check for map readiness
+        if (!this.map || !this.mapLoaded || !this.sources[type]) {
+            Logger.warn(`Cannot update source, map or source not ready: ${type}`);
+            return;
+        }
 
         // Collect all features for this source
         const features = [];
@@ -549,10 +628,16 @@ export class MapboxRenderer {
         const sourceId = this.sources[type];
         const source = this.map.getSource(sourceId);
         if (source) {
-            source.setData({
-                type: 'FeatureCollection',
-                features: features
-            });
+            try {
+                source.setData({
+                    type: 'FeatureCollection',
+                    features: features
+                });
+            } catch (error) {
+                Logger.error(`Error updating source ${sourceId}: ${error.message}`);
+            }
+        } else {
+            Logger.warn(`Source not found: ${sourceId}`);
         }
     }
 
