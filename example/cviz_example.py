@@ -16,9 +16,12 @@ def main():
     # cviz.add_subscriber(topic_name="text_2")
 
     # swarm example
-    cviz.add_subscriber(topic_name="polygon_vector")
-    cviz.add_subscriber(topic_name="boundary")
-    cviz.add_subscriber(topic_name="trajectory_vector")
+    # cviz.add_subscriber(topic_name="polygon_vector")
+    # cviz.add_subscriber(topic_name="boundary")
+    # cviz.add_subscriber(topic_name="trajectory_vector")
+
+    # geojson example
+    cviz.add_subscriber(topic_name="polygon")
 
     try:
         asyncio.run(cviz.start_server())

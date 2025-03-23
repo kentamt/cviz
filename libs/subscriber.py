@@ -40,7 +40,8 @@ class Subscriber:
                     topic, message = self.zmq_socket.recv_multipart()
                     topic = topic.decode('utf-8')
                     data = json.loads(message.decode('utf-8'))
-                    
+                    print(f"Received message: {topic}: {data}")
+
                     self.received_messages.append(data)
                     if len(self.received_messages) > 10:
                         self.received_messages.pop(0)

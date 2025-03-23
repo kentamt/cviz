@@ -9,10 +9,105 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from libs.publisher import Publisher
-from libs.geojson_helper import *
 from kinematic_model import KinematicBicycleModel
 
 logging.basicConfig(level=logging.INFO)
+
+
+def generate_rectangle_coordinates(center_x, center_y, w, h, yaw=0):
+    """Generate a rectangle polygon with specified parameters in GeoJSON format."""
+    points = [
+        [
+            center_x + w * math.cos(yaw) - h * math.sin(yaw),
+            center_y + w * math.sin(yaw) + h * math.cos(yaw)
+        ],
+        [
+            center_x - w * math.cos(yaw) - h * math.sin(yaw),
+            center_y - w * math.sin(yaw) + h * math.cos(yaw)
+        ],
+        [
+            center_x - w * math.cos(yaw) + h * math.sin(yaw),
+            center_y - w * math.sin(yaw) - h * math.cos(yaw)
+        ],
+        [
+            center_x + w * math.cos(yaw) + h * math.sin(yaw),
+            center_y + w * math.sin(yaw) - h * math.cos(yaw)
+        ],
+        [
+            center_x + w * math.cos(yaw) - h * math.sin(yaw),
+            center_y + w * math.sin(yaw) + h * math.cos(yaw)
+        ]  # Close the polygon
+    ]
+
+    return points
+
+
+def generate_random_point(center_x, center_y, radius=30):
+    """Generate a random point near a center with specified radius in GeoJSON format."""
+    angle = random.uniform(0, 2 * math.pi)
+    distance = random.uniform(0, radius)
+
+    return [
+        center_x + distance * math.cos(angle),
+        center_y + distance * math.sin(angle)
+    ]
+
+
+def create_point_feature(coordinates, properties=None):
+    """Create a GeoJSON Point feature"""
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "Point",
+            "coordinates": coordinates
+        },
+        "properties": properties or {}
+    }
+
+
+def create_linestring_feature(coordinates, properties=None):
+    """Create a GeoJSON LineString feature"""
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "LineString",
+            "coordinates": coordinates
+        },
+        "properties": properties or {}
+    }
+
+
+def create_polygon_feature(coordinates, properties=None):
+    """Create a GeoJSON Polygon feature"""
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [coordinates]  # Note: GeoJSON Polygons use an array of linear rings
+        },
+        "properties": properties or {}
+    }
+
+
+def create_multipoint_feature(coordinates, properties=None):
+    """Create a GeoJSON MultiPoint feature"""
+    return {
+        "type": "Feature",
+        "geometry": {
+            "type": "MultiPoint",
+            "coordinates": coordinates
+        },
+        "properties": properties or {}
+    }
+
+
+def create_feature_collection(features):
+    """Create a GeoJSON FeatureCollection"""
+    return {
+        "type": "FeatureCollection",
+        "features": features
+    }
+
 
 def main():
     """
@@ -24,13 +119,14 @@ def main():
     point_pub = Publisher(topic_name="point", data_type="GeoJSON")
     linestring_pub = Publisher(topic_name="linestring", data_type="GeoJSON")
     multilinestring_pub = Publisher(topic_name="multilinestring", data_type="GeoJSON")
-    geometry_collection_pub = Publisher(topic_name="geometry_collection", data_type="GeoJSON")
     feature_collection_pub = Publisher(topic_name="feature_collection", data_type="GeoJSON")
+
 
     # Set up kinematic models for multiple agents
     num_agents = 3
     acceleration = 0.0
     x_min, x_max, y_min, y_max = -500, 500, -500, 500
+    agent_colors = ["#ff0000", "#00ff00", "#0000ff"]
 
     # Initialize kinematic models
     models = []
@@ -94,7 +190,7 @@ def main():
                     "type": "vehicle",
                     "velocity": v,
                     "yaw": yaw,
-                    "color": f"#{random.randint(0, 0xFFFFFF):06x}"
+                    "color": agent_colors[i]
                 }
 
                 agent_feature = create_polygon_feature(agent_coordinates, agent_properties)
@@ -144,9 +240,10 @@ def main():
                 center_feature = create_point_feature([x, y], center_properties)
                 feature_collection["features"].append(center_feature)
 
-            # 3. Create and publish a collection of agent polygons
-            multipolygon_collection = create_feature_collection(agent_polygons)
-            multipolygon_pub.publish(multipolygon_collection)
+            # 3. Create and publish a collection of agent polygons as a MultiPolygon
+            # Use a FeatureCollection instead for more attributes
+            agent_collection = create_feature_collection(agent_polygons)
+            multipolygon_pub.publish(agent_collection)
 
             # 4. Generate random observation points (simulating sensor data)
             if sim_step % 10 == 0:  # Only update points every 10 steps
@@ -165,7 +262,8 @@ def main():
                     point_properties = {
                         "id": f"observation_{j}",
                         "type": "observation",
-                        "color": "#ffcc00"
+                        # "color": "#ffcc00"
+                        "color": f"#{random.randint(0, 0xFFFFFF):06x}"
                     }
                     point_feature = create_point_feature(point_coords, point_properties)
                     points_features.append(point_feature)
@@ -180,7 +278,8 @@ def main():
                 multipoint_feature = create_multipoint_feature(observation_points, multipoint_properties)
 
                 # Publish both individual points and as a MultiPoint
-                point_pub.publish(create_feature_collection(points_features))
+                point_collection = create_feature_collection(points_features)
+                point_pub.publish(point_collection)
                 feature_collection["features"].append(multipoint_feature)
 
             # 5. Publish individual polygon example (first agent)

@@ -7,19 +7,22 @@ const BASE_RECONNECT_TIMEOUT = 1000;  // 1 second
 
 // History limits for different geometry types
 const DEFAULT_HISTORY_LIMITS = {
-    Text: 1,                        
-    Polygon: 1,
-    PolygonVector: 1,
-    Point2d: 100,
+    Point: 1,
+    MultiPoint: 1,
     LineString: 1,
-    LineStringVector: 1
+    MultiLineString: 1,
+    Polygon: 1,
+    MultiPolygon: 1,
+    GeometryCollection: 1,
+    Feature: 1,
+    FeatureCollection: 1
 };
 
 // Determine the WebSocket URL dynamically based on the current page location
 function getWebSocketUrl() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host; // Includes hostname and port if specified
-    
+
     // Use the same host that's serving the web page, with the path to the WebSocket endpoint
     return `${protocol}//${host}/ws`;
 }
@@ -33,7 +36,7 @@ export class WebSocketManager {
         this.options = {
             serverUrl: dynamicUrl,
             maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
-            historyLimits: { ...DEFAULT_HISTORY_LIMITS },
+            historyLimits: {...DEFAULT_HISTORY_LIMITS},
             rendererOptions: {},
             ...options
         };
@@ -47,10 +50,8 @@ export class WebSocketManager {
         } else {
             this.init();
         }
-        
+
         // Store decay time for each topic
-        // Add a new entry for each topic to set a decay time
-        // i.e. this.decayTimes['topic_name'] = 1000;  // sec
         this.lifeTimes = {};
         this.historyLimits = {};
     }
@@ -72,7 +73,7 @@ export class WebSocketManager {
         debugPanel.style.maxWidth = '400px';
         debugPanel.style.maxHeight = '200px';
         debugPanel.style.overflowY = 'auto';
-        
+
         // Add initial content
         debugPanel.innerHTML = `
             <div><strong>WebSocket Status:</strong> <span id="ws-status">Initializing...</span></div>
@@ -82,7 +83,7 @@ export class WebSocketManager {
             <div><strong>Last Error:</strong> <span id="ws-error">None</span></div>
             <button id="ws-test-btn" style="margin-top: 5px; padding: 2px 5px;">Test Connection</button>
         `;
-        
+
         // Append to document when ready
         if (document.body) {
             document.body.appendChild(debugPanel);
@@ -93,29 +94,28 @@ export class WebSocketManager {
                 document.getElementById('ws-test-btn').addEventListener('click', () => this.testConnection());
             });
         }
-        
+
         this.debugPanel = debugPanel;
     }
-    
+
     updateDebugPanel(status, error = null) {
         if (!document.getElementById('ws-status')) return;
-        
+
         document.getElementById('ws-status').textContent = status;
         document.getElementById('ws-attempts').textContent = this.reconnectAttempts;
-        // document.getElementById('ws-url').textContent = getWebSocketUrl();
         document.getElementById('ws-url').textContent = getWebSocketUrl();
-        
+
         if (error) {
             document.getElementById('ws-error').textContent = error;
             document.getElementById('ws-error').style.color = 'red';
         }
-        
+
         // Get network information
         const networkInfo = [];
         if (window.location && window.location.hostname) {
             networkInfo.push(`Page host: ${window.location.hostname}:${window.location.port}`);
         }
-        
+
         // Check if running in Docker
         fetch('/health')
             .then(response => response.json())
@@ -128,29 +128,12 @@ export class WebSocketManager {
                 document.getElementById('ws-network').innerHTML = networkInfo.join('<br>');
             });
     }
-    
-    testConnection() {
-     /*    // Attempt to create a temporary WebSocket connection to test connectivity
-        const testWs = new WebSocket(getWebSocketUrl()); // getWebSocketUrl());
-        
-        testWs.onopen = () => {
-            Logger.log("Test connection succeeded!");
-            this.updateDebugPanel("Test connection successful");
-            testWs.close();
-        };
-        
-        testWs.onerror = (error) => {
-            Logger.error(`Test connection failed: ${error.message || "Unknown error"}`);
-            this.updateDebugPanel("Test connection failed", error.message || "Unknown error");
-        };
-        
-        this.updateDebugPanel("Testing connection..."); */
 
+    testConnection() {
         // Attempt to create a temporary WebSocket connection to test connectivity
         this.updateDebugPanel("Testing connection...");
-                
+
         // Send a ping request to the health endpoint instead of creating a WebSocket
-        // This avoids the WebSocketDisconnect error on the server
         fetch('/health')
             .then(response => response.json())
             .then(data => {
@@ -161,7 +144,6 @@ export class WebSocketManager {
                 Logger.error(`Connection test failed: ${error.message || "Unknown error"}`);
                 this.updateDebugPanel("Connection test failed", error.message || "Unknown error");
             });
-
     }
 
     init() {
@@ -170,7 +152,7 @@ export class WebSocketManager {
         } catch (error) {
             Logger.error(`Detailed renderer initialization error: ${error.message}`);
             Logger.error(`Error stack: ${error.stack}`);
-            
+
             // Create a user-friendly error display
             const errorDiv = document.createElement('div');
             errorDiv.style.color = 'red';
@@ -187,37 +169,39 @@ export class WebSocketManager {
                 </p>
             `;
             document.body.appendChild(errorDiv);
-            
+
             return;
         }
 
         this.ws = null;
         this.reconnectAttempts = 0;
         this.geometries = {
-            Text: {},
-            Polygon: {},
-            PolygonVector: {},
-            Point2d: {},
+            Point: {},
+            MultiPoint: {},
             LineString: {},
-            LineStringVector: {}
+            MultiLineString: {},
+            Polygon: {},
+            MultiPolygon: {},
+            GeometryCollection: {},
+            Feature: {},
+            FeatureCollection: {}
         };
 
         // Log network information before connecting
         this.logNetworkInfo();
-        
+
         // Delay connection slightly to ensure everything is ready
         setTimeout(() => {
             this.connectWebSocket();
         }, 1000);
     }
-    
+
     logNetworkInfo() {
         Logger.log("--- Network Information ---");
         Logger.log(`Page URL: ${window.location.href}`);
-        // Logger.log(`WebSocket URL: ${getWebSocketUrl()}`);
         Logger.log(`WebSocket URL: ${getWebSocketUrl()}`);
         Logger.log(`Navigator online: ${navigator.onLine}`);
-        
+
         // Try to fetch the server health endpoint
         fetch('/health')
             .then(response => response.json())
@@ -237,7 +221,7 @@ export class WebSocketManager {
 
         try {
             this.ws = new WebSocket(getWebSocketUrl());
-            
+
             // Track connection timeout
             const connectionTimeout = setTimeout(() => {
                 if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
@@ -258,13 +242,13 @@ export class WebSocketManager {
                 clearTimeout(connectionTimeout);
                 const errorMsg = error.message || "Unknown error";
                 Logger.error(`WebSocket error: ${errorMsg}`);
-                
+
                 // Get more details about the error if possible
                 let detailedError = "No additional details available";
                 if (error.target) {
                     detailedError = `ReadyState: ${error.target.readyState}`;
                 }
-                
+
                 Logger.error(`WebSocket detailed error: ${detailedError}`);
                 this.updateDebugPanel("Connection error", `${errorMsg} (${detailedError})`);
             };
@@ -289,82 +273,280 @@ export class WebSocketManager {
     handleMessage(event) {
         try {
             const data = JSON.parse(event.data);
-            if (this.validateGeometryData(data)) {
-                this.processGeometryData(data);
+
+            // Check if this is a GeoJSON message
+            if (this.isGeoJSONMessage(data)) {
+                this.processGeoJSONMessage(data);
+            }
+            // Check if this is a legacy format message that needs conversion
+            else if (this.isLegacyFormatMessage(data)) {
+                const geoJSON = this.convertLegacyToGeoJSON(data);
+                if (geoJSON) {
+                    this.processGeoJSONMessage({
+                        data_type: 'GeoJSON',
+                        topic: data.topic,
+                        history_limit: data.history_limit,
+                        life_time: data.life_time,
+                        geojson: geoJSON
+                    });
+                }
             } else {
-                Logger.warn("Invalid geometry data received:", data);
+                Logger.warn("Unknown message format received:", data);
             }
         } catch (error) {
-            Logger.error(`Message parsing error: ${error}`);
+            Logger.error(`Message parsing error: ${error.message}`, error.stack);
         }
     }
 
-    processGeometryData(data) {
+    isGeoJSONMessage(data) {
+        // Check if the message is already in GeoJSON format
+        return data.data_type === 'GeoJSON' ||
+            (data.geojson && data.geojson.type &&
+                ['Point', 'MultiPoint', 'LineString', 'MultiLineString',
+                    'Polygon', 'MultiPolygon', 'GeometryCollection',
+                    'Feature', 'FeatureCollection'].includes(data.geojson.type));
+    }
+
+    isLegacyFormatMessage(data) {
+        // Check if the message is in the legacy format (needs conversion)
+        return data.data_type && ['Polygon', 'PolygonVector', 'Point2d',
+            'LineString', 'LineStringVector', 'Text'].includes(data.data_type);
+    }
+
+    convertLegacyToGeoJSON(data) {
+        // Convert legacy format to GeoJSON
+        try {
+            switch (data.data_type) {
+                case 'Polygon':
+                    return this.convertPolygonToGeoJSON(data);
+                case 'PolygonVector':
+                    return this.convertPolygonVectorToGeoJSON(data);
+                case 'Point2d':
+                    return this.convertPointToGeoJSON(data);
+                case 'LineString':
+                    return this.convertLineStringToGeoJSON(data);
+                case 'LineStringVector':
+                    return this.convertLineStringVectorToGeoJSON(data);
+                case 'Text':
+                    return this.convertTextToGeoJSON(data);
+                default:
+                    Logger.warn(`Unknown legacy data type: ${data.data_type}`);
+                    return null;
+            }
+        } catch (error) {
+            Logger.error(`Error converting legacy format to GeoJSON: ${error.message}`);
+            return null;
+        }
+    }
+
+    convertPolygonToGeoJSON(data) {
+        if (!data.points || !Array.isArray(data.points)) {
+            return null;
+        }
+
+        // Convert points to GeoJSON coordinates format
+        const coordinates = [data.points.map(p => [p.x, p.y])];
+
+        // Close the polygon if needed (first point = last point)
+        if (coordinates[0].length > 0 &&
+            (coordinates[0][0][0] !== coordinates[0][coordinates[0].length - 1][0] ||
+                coordinates[0][0][1] !== coordinates[0][coordinates[0].length - 1][1])) {
+            coordinates[0].push([...coordinates[0][0]]);
+        }
+
+        // Create properties object from any additional fields
+        const properties = {...data};
+        delete properties.data_type;
+        delete properties.points;
+        delete properties.topic;
+
+        // Return GeoJSON polygon
+        return {
+            type: 'Polygon',
+            coordinates,
+            properties
+        };
+    }
+
+    convertPolygonVectorToGeoJSON(data) {
+        if (!data.polygons || !Array.isArray(data.polygons)) {
+            return null;
+        }
+
+        // Convert to GeoJSON MultiPolygon or FeatureCollection
+        if (data.polygons.length === 0) {
+            return {
+                type: 'MultiPolygon',
+                coordinates: [],
+                properties: {}
+            };
+        }
+
+        // Create a FeatureCollection with polygon features
+        const features = data.polygons.map((polygon, index) => {
+            // Convert polygon points to coordinates
+            const coordinates = [polygon.points.map(p => [p.x, p.y])];
+
+            // Close the polygon if needed
+            if (coordinates[0].length > 0 &&
+                (coordinates[0][0][0] !== coordinates[0][coordinates[0].length - 1][0] ||
+                    coordinates[0][0][1] !== coordinates[0][coordinates[0].length - 1][1])) {
+                coordinates[0].push([...coordinates[0][0]]);
+            }
+
+            return {
+                type: 'Feature',
+                geometry: {
+                    type: 'Polygon',
+                    coordinates
+                },
+                properties: {
+                    id: polygon.id || `polygon_${index}`,
+                    color: data.color || polygon.color,
+                    ...polygon.properties
+                }
+            };
+        });
+
+        // Create properties object from any additional fields
+        const properties = {...data};
+        delete properties.data_type;
+        delete properties.polygons;
+        delete properties.topic;
+
+        return {
+            type: 'FeatureCollection',
+            features,
+            properties
+        };
+    }
+
+    convertPointToGeoJSON(data) {
+        if (!data.point) {
+            return null;
+        }
+
+        // Create properties object from any additional fields
+        const properties = {...data};
+        delete properties.data_type;
+        delete properties.point;
+        delete properties.topic;
+
+        // Return GeoJSON point
+        return {
+            type: 'Point',
+            coordinates: [data.point.x, data.point.y],
+            properties
+        };
+    }
+
+    convertLineStringToGeoJSON(data) {
+        if (!data.points || !Array.isArray(data.points)) {
+            return null;
+        }
+
+        // Convert points to GeoJSON coordinates format
+        const coordinates = data.points.map(p => [p.x, p.y]);
+
+        // Create properties object from any additional fields
+        const properties = {...data};
+        delete properties.data_type;
+        delete properties.points;
+        delete properties.topic;
+
+        // Return GeoJSON LineString
+        return {
+            type: 'LineString',
+            coordinates,
+            properties
+        };
+    }
+
+    convertLineStringVectorToGeoJSON(data) {
+        if (!data.lines || !Array.isArray(data.lines)) {
+            return null;
+        }
+
+        // Convert to GeoJSON MultiLineString or FeatureCollection
+        if (data.lines.length === 0) {
+            return {
+                type: 'MultiLineString',
+                coordinates: [],
+                properties: {}
+            };
+        }
+
+        // Create a FeatureCollection with LineString features
+        const features = data.lines.map((line, index) => {
+            // Convert line points to coordinates
+            const coordinates = line.points.map(p => [p.x, p.y]);
+
+            return {
+                type: 'Feature',
+                geometry: {
+                    type: 'LineString',
+                    coordinates
+                },
+                properties: {
+                    id: line.id || `line_${index}`,
+                    color: data.color || line.color,
+                    ...line.properties
+                }
+            };
+        });
+
+        // Create properties object from any additional fields
+        const properties = {...data};
+        delete properties.data_type;
+        delete properties.lines;
+        delete properties.topic;
+
+        return {
+            type: 'FeatureCollection',
+            features,
+            properties
+        };
+    }
+
+    convertTextToGeoJSON(data) {
+        if (!data.text || !data.position) {
+            return null;
+        }
+
+        // Create properties object including the text
+        const properties = {
+            ...data,
+            label: data.text // Use text as label in GeoJSON
+        };
+        delete properties.data_type;
+        delete properties.text;
+        delete properties.position;
+        delete properties.topic;
+
+        // Return GeoJSON Point with text in properties
+        return {
+            type: 'Feature',
+            geometry: {
+                type: 'Point',
+                coordinates: [data.position.x, data.position.y]
+            },
+            properties
+        };
+    }
+
+    processGeoJSONMessage(data) {
         this.renderer.processGeometryData(data);
     }
 
-    validateGeometryData(data) {
-        // Basic validation
-        if (!data || !data.data_type) {
-            return false;
-        }
-
-        const validationMap = {
-            "Text": this.validateTextData,
-            "Polygon": this.validatePolygonData,
-            "PolygonVector": this.validatePolygonVectorData,
-            "Point2d": this.validatePointData,
-            "LineString": this.validateLineStringData,
-            "LineStringVector": this.validateLineStringVectorData
-        };
-
-        const validator = validationMap[data.data_type];
-        return validator ? validator(data) : false;
-    }
-
-    validateTextData(data) {
-        return data.text && data.position && 
-               typeof data.position.x === 'number' && 
-               typeof data.position.y === 'number';
-    }
-
-    validatePolygonData(data) {
-        return Array.isArray(data.points) && 
-               data.points.length >= 3 && 
-               data.points.every(p => p && typeof p.x === 'number' && typeof p.y === 'number');
-    }
-
-    validatePolygonVectorData(data) {
-        return data.polygons && Array.isArray(data.polygons);
-        // TODO: Add polygon validation
-        // && data.polygons.points.length > 0;  # FIXME: This is not working
-    }
-
-    validatePointData(data) {
-        return data.point && typeof data.point.x === 'number' && 
-               typeof data.point.y === 'number';
-    }
-
-    validateLineStringData(data) {
-        return Array.isArray(data.points) && 
-               data.points.length >= 2 && 
-               data.points.every(p => p && typeof p.x === 'number' && typeof p.y === 'number');
-    }
-
-    validateLineStringVectorData(data) {
-        // TODO: Add line string vector validation
-        return data.lines && Array.isArray(data.lines);
-    }
-    
     reconnect() {
         if (this.reconnectAttempts < this.options.maxReconnectAttempts) {
             const timeout = BASE_RECONNECT_TIMEOUT * Math.pow(2, this.reconnectAttempts);
-            
-            Logger.warn(`Reconnecting in ${timeout/1000} seconds... (Attempt ${this.reconnectAttempts + 1})`);
-            this.updateDebugPanel(`Reconnecting in ${timeout/1000}s (${this.reconnectAttempts + 1}/${this.options.maxReconnectAttempts})`);
-            
+
+            Logger.warn(`Reconnecting in ${timeout / 1000} seconds... (Attempt ${this.reconnectAttempts + 1})`);
+            this.updateDebugPanel(`Reconnecting in ${timeout / 1000}s (${this.reconnectAttempts + 1}/${this.options.maxReconnectAttempts})`);
+
             this.reconnectAttempts++;
-            
+
             setTimeout(() => {
                 this.connectWebSocket();
             }, timeout);
