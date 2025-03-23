@@ -1,21 +1,16 @@
-// map-app.js - For map-based application
+// map-app.js
 import { MapRenderer } from './map-renderer.js';
 
-// Initialize map application with London as default center
 const mapApp = new MapRenderer({
-    initialCenter: { lat: 51.497494, lon: -0.173037 },
-    initialZoom: 16,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    initialCenter: [-0.1278, 51.5074], // London coordinates
+    initialZoom: 12,
+    mapStyle: 'mapbox://styles/mapbox/dark-v11',
+    mapboxAccessToken: 'pk.eyJ1Ijoia2VudGFtdCIsImEiOiJjbTg3a2dkbGEwZ3VmMmpxeGZydTV5ZzJjIn0.8dHVr5NyE5V2Qkqfx0rmKA',
     wsOptions: {
-        serverUrl: 'ws://127.0.0.1:6789',
-        historyLimits: {
-            Text: 1,
-            Polygon: 1,
-            PolygonVector: 1,
-            Point2d: 100,
-            LineString: 10
-        }
+        serverUrl: "ws://127.0.0.1:8000/ws"
     }
 });
 
-// Export for debugging or external use
 window.mapApp = mapApp;

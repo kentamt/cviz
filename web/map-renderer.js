@@ -1,215 +1,164 @@
 // map-renderer.js
-import * as PIXI from 'https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.2.4/pixi.mjs';
-import { GeometryRenderer, Logger } from './geometry-renderer.js';
+import { MapboxRenderer, Logger } from './mapbox-renderer.js';
 import { WebSocketManager } from './websocket-manager.js';
 
 export class MapRenderer {
     constructor(options = {}) {
         const {
-            initialCenter = { lat: 51.497494, lon: -0.173037 }, // Default: London
-            initialZoom = 16,
-            tileSize = 256,
             containerId = 'map-container',
-            tileServer = 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-            // satellite imagery
-            // tileServer = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            initialCenter = [0.1278, 51.5074], // London coordinates: longitude, latitude
+            initialZoom = 10,
+            mapStyle = 'mapbox://styles/mapbox/dark-v11',
+            mapboxAccessToken = 'pk.YOUR_MAPBOX_TOKEN_HERE', // Replace with your Mapbox token
             wsOptions = {}
         } = options;
 
-        this.center = initialCenter;
-        this.zoom = initialZoom;
-        this.tileSize = tileSize;
-        this.tileServer = tileServer;
-        
         // Create map container
         this.container = document.getElementById(containerId);
         if (!this.container) {
             this.container = document.createElement('div');
             this.container.id = containerId;
+            this.container.style.width = '100%';
+            this.container.style.height = '100%';
             document.body.appendChild(this.container);
+        } else {
+            // Ensure the container has proper dimensions
+            this.container.style.width = '100%';
+            this.container.style.height = '100%';
         }
-        
-        // Create PIXI application
-        this.app = new PIXI.Application({
-            width: window.innerWidth,
-            height: window.innerHeight,
-            backgroundColor: 0x111111
-        });
-        this.container.appendChild(this.app.view);
-        
-        // Create containers
-        this.tileContainer = new PIXI.Container();
-        this.markerContainer = new PIXI.Container();
-        this.app.stage.addChild(this.tileContainer);
-        this.app.stage.addChild(this.markerContainer);
-        
-        // Set up coordinate transform function for the renderer
-        const transformFunction = (x, y) => {
-            return this.transformCoordinates(x, y);
-        };
-        
-        // Initialize WebSocket manager with our custom renderer
+
+        // Debug information panel
+        this.debugInfo = document.createElement('div');
+        this.debugInfo.style.position = 'absolute';
+        this.debugInfo.style.top = '10px';
+        this.debugInfo.style.left = '10px';
+        this.debugInfo.style.background = 'rgba(0,0,0,0.7)';
+        this.debugInfo.style.color = 'white';
+        this.debugInfo.style.padding = '10px';
+        this.debugInfo.style.fontFamily = 'monospace';
+        this.debugInfo.style.zIndex = '1000';
+        document.body.appendChild(this.debugInfo);
+
+        // Store map configuration
+        this.initialCenter = initialCenter;
+        this.initialZoom = initialZoom;
+        this.mapStyle = mapStyle;
+        this.mapboxToken = mapboxAccessToken;
+
+        // Initialize WebSocket manager with our Mapbox renderer
         this.wsManager = new WebSocketManager({
             ...wsOptions,
             rendererOptions: {
                 containerId: 'geometry-container',
-                coordinateTransform: transformFunction
+                mapboxToken: this.mapboxToken,
+                initialCenter: this.initialCenter,
+                initialZoom: this.initialZoom,
+                mapStyle: this.mapStyle,
+                // Ensure this flag is set to use MapboxRenderer
+                useMapbox: true
             }
         });
-        
-        // Store the geometry renderer
-        this.geometryRenderer = this.wsManager.renderer;
 
-        // Initial map loading
-        this.loadTiles();
-        
-        // Set up interaction
-        this.setupInteraction();
-    }
-    
-    // Convert lon/lat to pixel coordinates
-    lonLatToPixel(lon, lat, zoom) {
-        const x = ((lon + 180) / 360) * Math.pow(2, zoom) * this.tileSize;
-        const latRad = lat * Math.PI / 180;
-        const y = ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * Math.pow(2, zoom) * this.tileSize;
-        return { x, y };
-    }
-    
-    // Transform coordinates from lon/lat to screen pixels
-    transformCoordinates(lon, lat) {
-        const geoPoint = this.lonLatToPixel(lon, lat, this.zoom);
-        const centerPixel = this.lonLatToPixel(this.center.lon, this.center.lat, this.zoom);
-        
-        const x = geoPoint.x - centerPixel.x + this.app.renderer.width / 2;
-        const y = geoPoint.y - centerPixel.y + this.app.renderer.height / 2;
+        // Store the Mapbox renderer instance
+        this.mapboxRenderer = this.wsManager.renderer;
 
-        return { x, y };
+        // Set up window resize handler
+        window.addEventListener('resize', () => {
+            this.resize();
+        });
+
+        // Setup keyboard events for zooming
+        this.setupKeyboardControls();
+
+        // Update debug information
+        this.updateDebugInfo();
     }
 
-    // Update the transform in the geometry render to match the canvas
-    updateGeometryTransform() {
-        if (this.geometryRenderer) {
-            const transformFunction = (x, y) => {
-                return this.transformCoordinates(x, y);
-            };
-            this.geometryRenderer.updateCoordinateTransform(transformFunction);
+    resize() {
+        // Mapbox handles resizing automatically for the most part,
+        // but we can trigger a map resize event if needed
+        if (this.mapboxRenderer && this.mapboxRenderer.map) {
+            this.mapboxRenderer.map.resize();
         }
     }
 
-    
-    // Load map tiles based on current center and zoom
-    loadTiles() {
-        this.tileContainer.removeChildren();
-
-        const centerPixel = this.lonLatToPixel(this.center.lon, this.center.lat, this.zoom);
-        const tileX = Math.floor(centerPixel.x / this.tileSize);
-        const tileY = Math.floor(centerPixel.y / this.tileSize);
-
-        const range = 3; // number of tiles around center tile
-
-        for (let dx = -range; dx <= range; dx++) {
-            for (let dy = -range; dy <= range; dy++) {
-                const x = tileX + dx;
-                const y = tileY + dy;
-
-                const url = this.tileServer
-                    .replace('{z}', this.zoom)
-                    .replace('{x}', x)
-                    .replace('{y}', y);
-                const tile = PIXI.Sprite.from(url);
-
-                tile.x = (x * this.tileSize) - centerPixel.x + (this.app.renderer.width / 2);
-                tile.y = (y * this.tileSize) - centerPixel.y + (this.app.renderer.height / 2);
-
-                this.tileContainer.addChild(tile);
-            }
+    // Update debug information
+    updateDebugInfo() {
+        if (!this.mapboxRenderer || !this.mapboxRenderer.map) {
+            this.debugInfo.innerHTML = "<div>Map not initialized yet</div>";
+            return;
         }
+
+        const center = this.mapboxRenderer.map.getCenter();
+        const zoom = this.mapboxRenderer.map.getZoom();
+        const bounds = this.mapboxRenderer.map.getBounds();
+
+        this.debugInfo.innerHTML = `
+            <div>Center: ${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}</div>
+            <div>Zoom: ${zoom.toFixed(2)}</div>
+            <div>Bounds: [${bounds.getWest().toFixed(2)}, ${bounds.getSouth().toFixed(2)}, 
+                       ${bounds.getEast().toFixed(2)}, ${bounds.getNorth().toFixed(2)}]</div>
+        `;
     }
-    
-    // Set up mouse and keyboard interaction
-    setupInteraction() {
-        // Mouse drag handling
-        let dragging = false;
-        let lastMouse = null;
 
-        this.app.view.addEventListener('mousedown', e => {
-            dragging = true;
-            lastMouse = { x: e.clientX, y: e.clientY };
-        });
+    // Setup keyboard controls for zooming, panning, etc.
+    setupKeyboardControls() {
+        document.addEventListener('keydown', (e) => {
+            // Don't do anything if the map is not initialized
+            if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
 
-        this.app.view.addEventListener('mousemove', e => {
-            if (!dragging) return;
-
-            const dx = e.clientX - lastMouse.x;
-            const dy = e.clientY - lastMouse.y;
-            lastMouse = { x: e.clientX, y: e.clientY };
-
-            const scale = (this.tileSize * Math.pow(2, this.zoom));
-            const lonPerPixel = 360 / scale;
-            const latPerPixel = 360 / (scale * Math.cos(this.center.lat * Math.PI / 180));
-
-            this.center.lon -= dx * lonPerPixel;
-            this.center.lat += dy * latPerPixel;
-
-            this.loadTiles();
-            this.updateGeometryTransform();
-        });
-
-        this.app.view.addEventListener('mouseup', () => {
-            dragging = false;
-        });
-
-        // Keyboard navigation
-        document.addEventListener('keydown', e => {
-            const diff_angle = 360 / (this.tileSize * Math.pow(2, this.zoom));
-            const step_size = 10;
-            
-            if (e.key === 'ArrowLeft') {
-                this.center.lon -= step_size * diff_angle;
-                this.loadTiles();
-                this.updateGeometryTransform();
+            // Zoom in with '=' or '+' key
+            if (e.key === '=' || e.key === '+') {
+                this.mapboxRenderer.map.zoomIn();
+                this.updateDebugInfo();
             }
-            if (e.key === 'ArrowRight') {
-                this.center.lon += step_size * diff_angle;
-                this.loadTiles();
-                this.updateGeometryTransform();
+
+            // Zoom out with '-' key
+            if (e.key === '-') {
+                this.mapboxRenderer.map.zoomOut();
+                this.updateDebugInfo();
             }
-            if (e.key === 'ArrowUp') {
-                this.center.lat += step_size * diff_angle * Math.cos(this.center.lat * Math.PI / 180);
-                this.loadTiles();
-                this.updateGeometryTransform();
-            }
-            if (e.key === 'ArrowDown') {
-                this.center.lat -= step_size * diff_angle * Math.cos(this.center.lat * Math.PI / 180);
-                this.loadTiles();
-                this.updateGeometryTransform();
+
+            // Reset view with 'r' key
+            if (e.key === 'r') {
+                this.resetView();
             }
         });
+    }
 
-        // Zoom with mouse wheel
-        this.app.view.addEventListener('wheel', e => {
-            e.preventDefault();
-            const delta = Math.sign(e.deltaY);
-            if (delta > 0) {
-                this.zoom = Math.max(this.zoom - 1, 2);
-            } else {
-                this.zoom = Math.min(this.zoom + 1, 19);
-            }
-            this.loadTiles();
-            this.updateGeometryTransform();
+    // Add a debug marker at specific coordinates
+    addDebugMarker(lng, lat, color = '#ff0000') {
+        if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
+
+        this.mapboxRenderer.addDebugMarker(lng, lat, color);
+        console.log(`Debug marker added at [${lng}, ${lat}]`);
+    }
+
+    // Reset the map view to the initial settings
+    resetView() {
+        if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
+
+        this.mapboxRenderer.map.flyTo({
+            center: this.initialCenter,
+            zoom: this.initialZoom,
+            essential: true
         });
 
-        // Keyboard zoom
-        document.addEventListener('keydown', e => {
-            if (e.key === '=') {
-                this.zoom = Math.min(this.zoom + 1, 19);
-                this.loadTiles();
-                this.updateGeometryTransform();
-            } else if (e.key === '-') {
-                this.zoom = Math.max(this.zoom - 1, 2);
-                this.loadTiles();
-                this.updateGeometryTransform();
-            }
+        console.log("Map view reset to initial state");
+        this.updateDebugInfo();
+    }
+
+    // Center the map on specific coordinates
+    centerOn(lng, lat, zoom = null) {
+        if (!this.mapboxRenderer || !this.mapboxRenderer.map) return;
+
+        this.mapboxRenderer.map.flyTo({
+            center: [lng, lat],
+            zoom: zoom || this.mapboxRenderer.map.getZoom(),
+            essential: true
         });
+
+        console.log(`Map centered on [${lng}, ${lat}]`);
+        this.updateDebugInfo();
     }
 }

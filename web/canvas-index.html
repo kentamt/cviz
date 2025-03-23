@@ -1,0 +1,107 @@
+<!-- map-app.html - For map-based application -->
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map-Based Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #111;
+        }
+        #map-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #geometry-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="map-container"></div>
+    <div id="geometry-container"></div> 
+    <script type="module" src="map-app.js"></script>
+</body>
+</html>
+ -->
+
+<!-- canvas-app.html - For canvas-based application (no map) -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas-Based Visualization</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #111;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #geometry-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+    .view-toggle {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        z-index: 1000;
+        background: rgba(0,0,0,0.7);
+        border-radius: 4px;
+        padding: 5px;
+    }
+
+    .view-button {
+        color: white;
+        text-decoration: none;
+        padding: 5px 10px;
+        margin: 0 5px;
+        background: #333;
+        border-radius: 3px;
+    }
+
+    .view-button:hover {
+        background: #555;
+    }
+    </style>
+</head>
+<body>
+    <div id="pixi-container"></div>
+    
+    <script type="module" src="canvas-app.js"></script>
+
+<!-- Add this to both index.html and map-index.html -->
+<div class="view-toggle">
+    <a href="/" class="view-button">Canvas View</a>
+    <a href="/map" class="view-button">Map View</a>
+</div>
+
+</body>
+</html>

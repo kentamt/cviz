@@ -1,10 +1,12 @@
-<!-- map-app.html - For map-based application -->
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map-Based Visualization</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <!-- Mapbox CSS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
     <style>
         body {
             margin: 0;
@@ -31,47 +33,12 @@
 </head>
 <body>
     <div id="map-container"></div>
-    <div id="geometry-container"></div> 
-    <script type="module" src="map-app.js"></script>
-</body>
-</html>
- -->
+    <div id="geometry-container"></div>
 
-<!-- canvas-app.html - For canvas-based application (no map) -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas-Based Visualization</title>
-    <link rel="icon" type="image/png" href="assets/favicon.png">
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #111;
-        }
-        #canvas-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-        #geometry-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-    </style>
-</head>
-<body>
-    <div id="pixi-container"></div>
-    
-    <script type="module" src="canvas-app.js"></script>
+    <!-- Load Mapbox GL JS first -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+
+    <!-- Then load our application -->
+    <script type="module" src="map-app.js"></script>
 </body>
 </html>

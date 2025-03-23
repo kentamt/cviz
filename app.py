@@ -11,6 +11,7 @@ from collections import defaultdict
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from libs.subscriber import Subscriber
 
@@ -163,9 +164,9 @@ def setup_swarm_example():
     # cviz_manager.add_subscriber(topic_name="polygon")
     cviz_manager.add_subscriber(topic_name="multipolygon")
     cviz_manager.add_subscriber(topic_name="point")
-    # cviz_manager.add_subscriber(topic_name="linestring")
-    # cviz_manager.add_subscriber(topic_name="multilinestring")
-    # cviz_manager.add_subscriber(topic_name="feature_collection")
+    cviz_manager.add_subscriber(topic_name="linestring")
+    cviz_manager.add_subscriber(topic_name="multilinestring")
+    cviz_manager.add_subscriber(topic_name="feature_collection")
 
 
 
@@ -181,7 +182,8 @@ async def lifespan(app: FastAPI):
     # Run any startup scripts asynchronously
     # script_path = "example/swarm_example.py"
     # script_path = "example/map_swarm_example.py"
-    script_path = "example/geojson_example.py"
+    # script_path = "example/geojson_example.py"
+    script_path = "example/geojson_london_example.py"
 
     if Path(script_path).exists():
         logging.info("🚀 Starting Swarm Simulator...")
@@ -235,6 +237,7 @@ async def websocket_endpoint(websocket: WebSocket):
 app.mount("/static", StaticFiles(directory="web"), name="static")
 # Serve the main application
 app.mount("/", StaticFiles(directory="web", html=True), name="web")
+
 
 if __name__ == "__main__":
     import uvicorn

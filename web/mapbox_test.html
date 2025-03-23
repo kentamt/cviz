@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Moving Rectangles on Mapbox</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mapbox-gl/2.15.0/mapbox-gl.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/mapbox-gl/2.15.0/mapbox-gl.css" rel="stylesheet">
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            z-index: 1;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="control-panel">
+        <button id="start">Start Animation</button>
+        <button id="stop">Stop Animation</button>
+        <button id="add">Add Rectangle</button>
+    </div>
+
+    <script>
+        // Replace with your own Mapbox access token
+        // For demo purposes, we'll use a placeholder
+        mapboxgl.accessToken = 'pk.eyJ1Ijoia2VudGFtdCIsImEiOiJjbTg3a2dkbGEwZ3VmMmpxeGZydTV5ZzJjIn0.8dHVr5NyE5V2Qkqfx0rmKA';
+
+        // Initialize the map
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/dark-v11',
+            center: [-74.5, 40], // Starting position [lng, lat]
+            zoom: 4 // Starting zoom
+        });
+
+        // Array to store rectangle data
+        let rectangles = [];
+        let animationId = null;
+        let rectangleCount = 0;
+
+        // Function to create a random rectangle
+        function createRandomRectangle() {
+            // Generate a random position near the map center
+            const centerLng = map.getCenter().lng;
+            const centerLat = map.getCenter().lat;
+            
+            // Random offset from center (±2 degrees)
+            const offsetLng = (Math.random() - 0.5) * 4;
+            const offsetLat = (Math.random() - 0.5) * 4;
+            
+            // Rectangle properties
+            const width = Math.random() * 0.5 + 0.1; // Width in degrees (0.1 to 0.4)
+            const height = Math.random() * 0.5 + 0.1; // Height in degrees (0.1 to 0.4)
+            
+            // Random movement direction and speed
+            const speedLng = (Math.random() - 0.5) * 0.1;
+            const speedLat = (Math.random() - 0.5) * 0.1;
+            
+            // Random color
+            const color = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
+            
+            return {
+                id: `rectangle-${rectangleCount++}`,
+                center: [centerLng + offsetLng, centerLat + offsetLat],
+                width: width,
+                height: height,
+                speedLng: speedLng,
+                speedLat: speedLat,
+                color: color,
+                
+            };
+        }
+
+        // Function to generate GeoJSON for a rectangle
+        function rectangleToGeoJSON(rectangle) {
+            const [lng, lat] = rectangle.center;
+            const halfWidth = rectangle.width / 2;
+            const halfHeight = rectangle.height / 2;
+            
+            // Construct a GeoJSON polygon for the rectangle
+            return {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': [[
+                        [lng - halfWidth, lat - halfHeight],
+                        [lng + halfWidth, lat - halfHeight],
+                        [lng + halfWidth, lat + halfHeight],
+                        [lng - halfWidth, lat + halfHeight],
+                        [lng - halfWidth, lat - halfHeight]
+                    ]]
+                },
+                'properties': {
+                    'id': rectangle.id,
+                    'color': rectangle.color
+                }
+            };
+        }
+
+        // Move all rectangles to new positions
+        function moveRectangles() {
+            rectangles.forEach(rect => {
+                // Update position
+                rect.center[0] += rect.speedLng;
+                rect.center[1] += rect.speedLat;
+                
+                // Bounce off map boundaries
+                const bounds = map.getBounds();
+                const halfWidth = rect.width / 2;
+                const halfHeight = rect.height / 2;
+                
+                if (rect.center[0] - halfWidth < bounds.getWest() || 
+                    rect.center[0] + halfWidth > bounds.getEast()) {
+                    rect.speedLng *= -1;
+                }
+                
+                if (rect.center[1] - halfHeight < bounds.getSouth() || 
+                    rect.center[1] + halfHeight > bounds.getNorth()) {
+                    rect.speedLat *= -1;
+                }
+            });
+            
+            // Update the data in the map source
+            updateMapData();
+        }
+
+        // Function to update the map data with current rectangle positions
+        function updateMapData() {
+            const features = rectangles.map(rectangleToGeoJSON);
+            
+            if (map.getSource('rectangles')) {
+                map.getSource('rectangles').setData({
+                    'type': 'FeatureCollection',
+                    'features': features
+                });
+            }
+        }
+
+        // Start the animation
+        function startAnimation() {
+            if (!animationId) {
+                animationId = setInterval(moveRectangles, 16);
+                document.getElementById('start').disabled = true;
+                document.getElementById('stop').disabled = false;
+            }
+        }
+
+        // Stop the animation
+        function stopAnimation() {
+            if (animationId) {
+                clearInterval(animationId);
+                animationId = null;
+                document.getElementById('start').disabled = false;
+                document.getElementById('stop').disabled = true;
+            }
+        }
+
+        // Add a new rectangle
+        function addRectangle() {
+            const rectangle = createRandomRectangle();
+            rectangles.push(rectangle);
+            updateMapData();
+        }
+
+        // Initialize the map
+        map.on('load', () => {
+            // Add a source and layer for the rectangles
+            map.addSource('rectangles', {
+                'type': 'geojson',
+                'data': {
+                    'type': 'FeatureCollection',
+                    'features': []
+                }
+            });
+            
+            map.addLayer({
+                'id': 'rectangles-layer',
+                'type': 'fill',
+                'source': 'rectangles',
+                'paint': {
+                    'fill-color': ['get', 'color'],
+                    'fill-opacity': 0.7
+                }
+            });
+            
+            // map.addLayer({
+            //     'id': 'rectangles-outline',
+            //     'type': 'line',
+            //     'source': 'rectangles',
+            //     'paint': {
+            //         'line-color': '#000',
+            //         'line-width': 1
+            //     }
+            // });
+            
+            // Add event listeners for buttons
+            document.getElementById('start').addEventListener('click', startAnimation);
+            document.getElementById('stop').addEventListener('click', stopAnimation);
+            document.getElementById('add').addEventListener('click', addRectangle);
+            
+            // Add initial rectangles
+            for (let i = 0; i < 1000; i++) {
+                addRectangle();
+            }
+            
+            // Start animation automatically
+            startAnimation();
+            
+            // Disable the stop button initially
+            document.getElementById('stop').disabled = false;
+        });
+    </script>
+</body>
+</html>

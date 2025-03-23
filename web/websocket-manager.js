@@ -1,5 +1,6 @@
 // websocket-manager.js
 import { GeometryRenderer, Logger } from './geometry-renderer.js';
+import { MapboxRenderer } from './mapbox-renderer.js';
 
 // Default WebSocket settings
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -148,7 +149,14 @@ export class WebSocketManager {
 
     init() {
         try {
-            this.renderer = new GeometryRenderer(this.options.rendererOptions);
+            // Choose the renderer based on options or detect if we're using the map version
+            if (this.options.rendererOptions.mapboxToken || this.options.rendererOptions.useMapbox) {
+                Logger.log('Using MapboxRenderer');
+                this.renderer = new MapboxRenderer(this.options.rendererOptions);
+            } else {
+                Logger.log('Using GeometryRenderer');
+                this.renderer = new GeometryRenderer(this.options.rendererOptions);
+            }
         } catch (error) {
             Logger.error(`Detailed renderer initialization error: ${error.message}`);
             Logger.error(`Error stack: ${error.stack}`);
@@ -273,7 +281,6 @@ export class WebSocketManager {
     handleMessage(event) {
         try {
             const data = JSON.parse(event.data);
-
 
             // Check if this is a GeoJSON message
             if (this.isGeoJSONMessage(data)) {
