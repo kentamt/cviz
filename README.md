@@ -32,7 +32,6 @@ Cviz renders geometries based on Mapbox. You can use your own Mapbox token by re
  mapboxAccessToken = 'YOUR_MAPBOX_TOKEN';
 ```
 
-
 ## Demo
 tested with Python3.12, 3.13
 
@@ -48,5 +47,34 @@ vicorn app:app --host 0.0.0.0 --reload --port 8000
 and visit `localhost:8000`
 
 ## How it works
+You can send topics to the Cviz server, and Cviz sends data via Websockets to the frontend. 
 
-write something here
+In your Python code
+
+```python
+# define your publisher
+multipolygon_pub = Publisher(topic_name="multipolygon", data_type="GeoJSON")
+
+while True:
+  ...
+  # prepare data
+  ...
+  
+  # publish data
+  agent_collection = gh.create_feature_collection(agent_polygons)
+  multipolygon_pub.publish(agent_collection)
+```
+and add the topic name to cviz server.
+
+```python
+# Create a Cviz server manager instance
+cviz_manager = CvizServerManager()
+
+# Add subscribers with history limits where needed
+cviz_manager.add_subscriber(topic_name="multipolygon")
+
+# Start the server
+await cviz_manager.start()
+```
+
+finally, run HTML server and visit inidex.html.
