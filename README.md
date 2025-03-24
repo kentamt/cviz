@@ -12,6 +12,27 @@ Web-based visualisation tool for Python. Cviz has two visualisation modes: canva
   </tr>
 </table>
 
+## Demo
+For map-app:
+
+```bash
+pip install zmq json numpy websockets
+npm install pixi.js
+```
+Run app:
+```bash
+uvicorn app:app --host 0.0.0.0 --reload --port 8000
+```
+and visit `localhost:8000`
+
+For canvas-app, change `canvas_index.html` to `index.html`, and the below in `app.py`:
+```python
+# app.py
+# Run any startup scripts asynchronously
+script_path = "example/geojson_example.py"  # <-- canvas app
+# script_path = "example/geojson_london_example.py"  # <-- map app
+```
+
 ## Data type
 Cviz supports GeoJson format. See https://geojson.org/.
 
@@ -26,25 +47,29 @@ Cviz supports GeoJson format. See https://geojson.org/.
 - [ ] Antimeridian Cutting
 - [ ] Uncertainty and Precision 
 
+## Property
+Supported properties for GeoJson data for visualisation:
+```python
+{
+  # For visualisation
+  "color": "#ff0000",
+  "history_limit": 1,  # the number of geometries you keep to visualise
+  "life_time": 5,      # the life time of this geometry [sec]
+  # You can add properties  
+  "id": f"agent_{i}",  
+  "type": "vehicle",
+  "velocity": v,
+  "yaw": yaw,
+  "description": f"Vehicle {i} in London"
+   ...
+}
+```
+
 ## Mapbox
 Cviz renders geometries based on Mapbox. You can use your own Mapbox token by replacing the placeholder in `map-app.js` with your token.
 ```javascript
  mapboxAccessToken = 'YOUR_MAPBOX_TOKEN';
 ```
-
-## Demo
-tested with Python3.12, 3.13
-
-```bash
-pip install zmq json numpy websockets
-npm install pixi.js
-```
-Run app:
-```bash
-vicorn app:app --host 0.0.0.0 --reload --port 8000
-```
-
-and visit `localhost:8000`
 
 ## How it works
 You can send topics to the Cviz server, and Cviz sends data via Websockets to the frontend. 
