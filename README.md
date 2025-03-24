@@ -4,16 +4,13 @@ Web-based visualisation tool for Python. Cviz has two visualisation modes: canva
 <table>
   <tr>
     <td>
-      <video src="https://github.com/user-attachments/assets/294b6d65-13e6-4107-8e75-a9d15721a730" controls width="100%"></video>
+      <img src="https://github.com/user-attachments/assets/2da16f6a-b033-4fb3-9f5f-024ff07f5005" controls width="100%"></video>
     </td>
     <td>
-      <video src="https://github.com/user-attachments/assets/d10e15f6-00d1-42fc-888f-335f79cc4044" controls width="100%"></video>
+      <img src="https://github.com/user-attachments/assets/945ca631-0b93-406d-89e8-fe586d11c841" controls width="100%"></video>
     </td>
   </tr>
 </table>
-
-
-
 
 ## Data type
 Cviz supports GeoJson format. See https://geojson.org/.
