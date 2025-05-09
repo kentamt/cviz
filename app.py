@@ -2,6 +2,7 @@ import sys
 import os
 import logging
 import asyncio
+import argparse
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -21,39 +22,38 @@ logging.basicConfig(
 # Create a Cviz server manager instance
 cviz_manager = CvizServerManager()
 
-# Configure default topics for swarm example
-def setup_swarm_example():
+
+# Get topics from environment variable
+def get_topics_from_env():
+    topics_str = os.environ.get('CVIZ_TOPICS', "multipolygon,point,linestring,multilinestring,feature_collection")
+    return [topic.strip() for topic in topics_str.split(',')]
+
+
+# Get example script from environment variable
+def get_example_from_env():
+    return os.environ.get('CVIZ_EXAMPLE', "example/geojson_london_example.py")
+
+
+# Configure topics for swarm example
+def setup_topics():
+    # Get topics from environment
+    topics = get_topics_from_env()
+    logging.info(f"Setting up topics: {topics}")
+
     # Add subscribers with history limits where needed
-    cviz_manager.add_subscriber(topic_name="multipolygon")
-    cviz_manager.add_subscriber(topic_name="point")
-    cviz_manager.add_subscriber(topic_name="linestring")
-    cviz_manager.add_subscriber(topic_name="multilinestring")
-    cviz_manager.add_subscriber(topic_name="feature_collection")
+    for topic_name in topics:
+        cviz_manager.add_subscriber(topic_name=topic_name)
+        logging.info(f"Added subscriber for topic: {topic_name}")
+
 
 # Use lifespan to start and stop background tasks
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Set up the subscribers
-    setup_swarm_example()
+    setup_topics()
 
     # Start the task
     subscriber_tasks, broadcast_task = await cviz_manager.start()
-
-    # Run any startup scripts asynchronously
-    # script_path = "example/geojson_example.py"
-    script_path = "example/geojson_london_example.py"
-
-    if Path(script_path).exists():
-        logging.info("🚀 Starting Swarm Simulator...")
-
-        # Create a subprocess using asyncio
-        proc = await asyncio.create_subprocess_shell(
-            f"{sys.executable} {script_path}",
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        logging.info("🚀 Started Swarm Simulator")
-
     yield
 
     # Cleanup
@@ -73,10 +73,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "topics": get_topics_from_env(),
+        "example": get_example_from_env()
+    }
 
 
 # WebSocket endpoint
@@ -104,4 +109,18 @@ app.mount("/", StaticFiles(directory="web", html=True), name="web")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+
+    # Parse command line args when run directly
+    parser = argparse.ArgumentParser(description='Cviz server arguments')
+    parser.add_argument('--topics', type=str, help='Comma-separated list of topics to subscribe to')
+    parser.add_argument('--host', type=str, default="127.0.0.1", help='Host to bind to')
+    parser.add_argument('--port', type=int, default=8000, help='Port to bind to')
+
+    args = parser.parse_args()
+
+    # Set environment variables from command line args if provided
+    if args.topics:
+        os.environ['CVIZ_TOPICS'] = args.topics
+
+    # Run the server
+    uvicorn.run("app:app", host=args.host, port=args.port, reload=True)

@@ -7,7 +7,8 @@ import logging
 class Subscriber:
     def __init__(self,
                  topic_name: str,
-                 zmq_endpoint="tcp://127.0.0.1:5555"):
+                 zmq_endpoint="tcp://127.0.0.1:5555",
+                 msg_freq=40):
         """Initialise Subscriber."""
         
         self.topic = topic_name
@@ -17,6 +18,7 @@ class Subscriber:
         self.zmq_socket.setsockopt_string(zmq.SUBSCRIBE, topic_name)
         self.topic = topic_name
         self.received_messages = []
+        self.msg_freq = msg_freq  # Frequency of messages to receive
         
     def get_message(self):
         """Get the latest message."""
@@ -29,7 +31,9 @@ class Subscriber:
         """Subscribe to the ZMQ socket."""
         poller = zmq.Poller()
         poller.register(self.zmq_socket, zmq.POLLIN)
-        
+
+        counter = 0
+
         while True:
             try:
                 # Non-blocking poll for messages
@@ -40,12 +44,17 @@ class Subscriber:
                     topic, message = self.zmq_socket.recv_multipart()
                     topic = topic.decode('utf-8')
                     data = json.loads(message.decode('utf-8'))
-                    print(f"Received message: {topic}: {data}")
+
+                    if counter % self.msg_freq == 0:
+                        logging.info(f"Received message: {topic}")
+                        logging.debug(f"{data}")
 
                     self.received_messages.append(data)
                     if len(self.received_messages) > 10:
                         self.received_messages.pop(0)
-                
+
+                    counter += 1
+
                 # Yield control to allow other async operations
                 await asyncio.sleep(0)
                 

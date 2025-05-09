@@ -84,7 +84,7 @@ class CvizServerManager:
                     message = _sub.get_message()
 
                     if message is not None:
-                        logging.info(f"Received message for topic: {topic}")
+                        logging.debug(f"Received message for topic: {topic}")
                         websocket_message = json.dumps(message)
 
                         # Store in cache for new clients
