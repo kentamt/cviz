@@ -3,6 +3,20 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Editor/IDE specific files
+# VSCode
+.vscode/
+# PyCharm
+.idea/
+
+# Mac
+.DS_Store
+
+# npm
+node_modules/
+package-lock.json
+package.json
+
 # C extensions
 *.so
 
@@ -169,3 +183,8 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# ignore recordings
+recordings/
+videos
