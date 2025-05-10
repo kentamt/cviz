@@ -2,29 +2,24 @@ import math
 import time
 import random
 import logging
-
-
 import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from libs.publisher import Publisher
-from libs.geojson_helper import GeoJSONHelper
+# Import the module instead of the class
+import libs.geojson as geo
 from kinematic_model import KinematicBicycleModel
 
-
 logging.basicConfig(level=logging.INFO)
-
 
 def main():
     """
     Main simulation loop using GeoJSON with coordinates around London
     """
-    gh = GeoJSONHelper()
-
     # London center coordinates (longitude, latitude)
     LONDON_CENTER_LON_LAT = [-0.1278, 51.5074]
-    LONDON_CENTER_X_Y = gh.lonlat_to_utm(LONDON_CENTER_LON_LAT[0], LONDON_CENTER_LON_LAT[1])
+    LONDON_CENTER_X_Y = geo.lonlat_to_utm(LONDON_CENTER_LON_LAT[0], LONDON_CENTER_LON_LAT[1])
     logging.info(f"London center in UTM: {LONDON_CENTER_X_Y} meters")
 
     # Create publishers for different geometry types
@@ -46,10 +41,10 @@ def main():
     y_max = y_center + boundary_radius_m
 
     # Convert boundary corners to lon/lat for GeoJSON
-    sw_corner = gh.utm_to_lonlat(x_min, y_min)
-    se_corner = gh.utm_to_lonlat(x_max, y_min)
-    ne_corner = gh.utm_to_lonlat(x_max, y_max)
-    nw_corner = gh.utm_to_lonlat(x_min, y_max)
+    sw_corner = geo.utm_to_lonlat(x_min, y_min)
+    se_corner = geo.utm_to_lonlat(x_max, y_min)
+    ne_corner = geo.utm_to_lonlat(x_max, y_max)
+    nw_corner = geo.utm_to_lonlat(x_min, y_max)
 
     # Set up kinematic models for multiple agents
     num_agents = 20
@@ -79,7 +74,7 @@ def main():
     try:
         while True:
             # Create a feature collection to hold all geometries for this frame
-            feature_collection = gh.create_feature_collection([])
+            feature_collection = geo.create_feature_collection([])
 
             # 1. Create boundary as a LineString Feature
             boundary_coordinates = [
@@ -97,7 +92,7 @@ def main():
                 "description": "Simulation boundary around London"
             }
 
-            boundary_feature = gh.create_linestring_feature(boundary_coordinates, boundary_properties)
+            boundary_feature = geo.create_linestring_feature(boundary_coordinates, boundary_properties)
 
             # Publish boundary as separate LineString
             linestring_pub.publish(boundary_feature)
@@ -117,7 +112,7 @@ def main():
 
                 # Generate a rectangle for the agent in UTM
                 # For a car-sized rectangle (approx. 4.5m x 2m)
-                agent_utm_coords = gh.generate_rectangle_coordinates_utm(
+                agent_utm_coords = geo.generate_rectangle_coordinates_utm(
                     center_x=x,
                     center_y=y,
                     width_m=20.25,
@@ -126,7 +121,7 @@ def main():
                 )
 
                 # Convert to lon/lat for GeoJSON
-                agent_lonlat_coords = gh.utm_rectangle_to_lonlat(agent_utm_coords)
+                agent_lonlat_coords = geo.utm_rectangle_to_lonlat(agent_utm_coords)
 
                 # Create GeoJSON polygon for this agent
                 agent_properties = {
@@ -139,14 +134,14 @@ def main():
                     "description": f"Vehicle {i} in London"
                 }
 
-                agent_feature = gh.create_polygon_feature(agent_lonlat_coords, agent_properties)
+                agent_feature = geo.create_polygon_feature(agent_lonlat_coords, agent_properties)
 
                 # Add to polygons collection and feature collection
                 agent_polygons.append(agent_feature)
                 feature_collection["features"].append(agent_feature)
 
                 # Convert current position to lon/lat and add to trajectory
-                current_lonlat = gh.utm_to_lonlat(x, y)
+                current_lonlat = geo.utm_to_lonlat(x, y)
                 trajectories[i].append(list(current_lonlat))
 
                 # Limit trajectory length
@@ -162,7 +157,7 @@ def main():
                         "lineWidth": 2,
                         "description": f"Path of vehicle {i}"
                     }
-                    trajectory_feature = gh.create_linestring_feature(trajectories[i], trajectory_properties)
+                    trajectory_feature = geo.create_linestring_feature(trajectories[i], trajectory_properties)
                     feature_collection["features"].append(trajectory_feature)
 
                 # Warp agents if they go outside the boundaries (in UTM coordinates)
@@ -186,11 +181,11 @@ def main():
                     "color": "#ff0000",
                     "description": f"Center of vehicle {i}"
                 }
-                center_feature = gh.create_point_feature(list(current_lonlat), center_properties)
+                center_feature = geo.create_point_feature(list(current_lonlat), center_properties)
                 feature_collection["features"].append(center_feature)
 
             # 3. Create and publish a collection of agent polygons
-            agent_collection = gh.create_feature_collection(agent_polygons)
+            agent_collection = geo.create_feature_collection(agent_polygons)
             multipolygon_pub.publish(agent_collection)
 
             # 4. Generate random observation points (simulating sensor data)
@@ -205,13 +200,13 @@ def main():
                 observation_points = []
                 for j in range(5):  # Create 5 random observation points
                     # Generate random point in UTM
-                    utm_point = gh.generate_random_point_utm(
+                    utm_point = geo.generate_random_point_utm(
                         center_x=vehicle_x,
                         center_y=vehicle_y,
-                        radius_m=100  # 500m radius
+                        radius_m=100  # 100m radius
                     )
                     # Convert to lon/lat
-                    lonlat_point = gh.utm_point_to_lonlat(utm_point)
+                    lonlat_point = geo.utm_point_to_lonlat(utm_point)
                     observation_points.append(list(lonlat_point))
 
                 # Create individual point features for the feature collection
@@ -224,7 +219,7 @@ def main():
                         "history_limit": 50,
                         "description": f"Observation point {j}"
                     }
-                    point_feature = gh.create_point_feature(point_coords, point_properties)
+                    point_feature = geo.create_point_feature(point_coords, point_properties)
                     points_features.append(point_feature)
                     feature_collection["features"].append(point_feature)
 
@@ -236,10 +231,10 @@ def main():
                     "history_limit": 1,
                     "description": "Collection of all observation points"
                 }
-                multipoint_feature = gh.create_multipoint_feature(observation_points, multipoint_properties)
+                multipoint_feature = geo.create_multipoint_feature(observation_points, multipoint_properties)
 
                 # Publish both individual points and as a MultiPoint
-                point_collection = gh.create_feature_collection(points_features)
+                point_collection = geo.create_feature_collection(points_features)
                 point_pub.publish(point_collection)
                 feature_collection["features"].append(multipoint_feature)
 
@@ -262,7 +257,6 @@ def main():
         print("\n🛑 London Simulator stopped")
     finally:
         print("Cleaning up...")
-
 
 if __name__ == "__main__":
     main()

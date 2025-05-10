@@ -3,14 +3,14 @@ import time
 import random
 import logging
 import json
-
 import os
 import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from libs.publisher import Publisher
 from kinematic_model import KinematicBicycleModel
-from libs.geojson_helper import GeoJSONHelper
+# Import the module instead of the class
+import libs.geojson as geo
 
 logging.basicConfig(level=logging.INFO)
 
@@ -19,8 +19,6 @@ def main():
     """
     Main simulation loop using GeoJSON format for all geometries
     """
-    gh = GeoJSONHelper()
-
     # Create publishers for different geometry types
     polygon_pub = Publisher(topic_name="polygon", data_type="GeoJSON")
     multipolygon_pub = Publisher(topic_name="multipolygon", data_type="GeoJSON")
@@ -53,7 +51,7 @@ def main():
     try:
         while True:
             # Create a feature collection to hold all geometries for this frame
-            feature_collection = gh.create_feature_collection([])
+            feature_collection = geo.create_feature_collection([])
 
             # 1. Create boundary as a LineString Feature
             boundary_coordinates = [
@@ -70,7 +68,7 @@ def main():
                 "lineWidth": 2
             }
 
-            boundary_feature = gh.create_linestring_feature(boundary_coordinates, boundary_properties)
+            boundary_feature = geo.create_linestring_feature(boundary_coordinates, boundary_properties)
 
             # Publish boundary as separate LineString
             linestring_pub.publish(boundary_feature)
@@ -89,7 +87,7 @@ def main():
                 x, y, yaw, v = state
 
                 # Generate a rectangle polygon for the agent
-                agent_coordinates = gh.generate_rectangle_coordinates(x, y, w=15, h=10, yaw=yaw)
+                agent_coordinates = geo.generate_rectangle_coordinates(x, y, w=15, h=10, yaw=yaw)
 
                 # Create GeoJSON polygon for this agent
                 agent_properties = {
@@ -101,7 +99,7 @@ def main():
                     'history_limit': 1
                 }
 
-                agent_feature = gh.create_polygon_feature(agent_coordinates, agent_properties)
+                agent_feature = geo.create_polygon_feature(agent_coordinates, agent_properties)
 
                 # Add to polygons collection and feature collection
                 agent_polygons.append(agent_feature)
@@ -122,7 +120,7 @@ def main():
                         "color": "#333333",
                         "lineWidth": 2
                     }
-                    trajectory_feature = gh.create_linestring_feature(trajectories[i], trajectory_properties)
+                    trajectory_feature = geo.create_linestring_feature(trajectories[i], trajectory_properties)
                     feature_collection["features"].append(trajectory_feature)
 
                 # Warp agents if they go outside the boundaries
@@ -145,20 +143,20 @@ def main():
                     "type": "center",
                     "color": "#ff0000"
                 }
-                center_feature = gh.create_point_feature([x, y], center_properties)
+                center_feature = geo.create_point_feature([x, y], center_properties)
                 feature_collection["features"].append(center_feature)
 
             # 3. Create and publish a collection of agent polygons as a MultiPolygon
             # Use a FeatureCollection instead for more attributes
-            agent_collection = gh.create_feature_collection(agent_polygons)
+            agent_collection = geo.create_feature_collection(agent_polygons)
             multipolygon_pub.publish(agent_collection)
 
             # 4. Generate random observation points (simulating sensor data)
-            if sim_step % 3 == 0:  # Only update points every 10 steps
+            if sim_step % 3 == 0:  # Only update points every 3 steps
                 # Create points as a MultiPoint feature
                 observation_points = []
                 for j in range(5):  # Create 5 random observation points
-                    observation_points.append(gh.generate_random_point(
+                    observation_points.append(geo.generate_random_point(
                         center_x=models[0].state[0],
                         center_y=models[0].state[1],
                         radius=100
@@ -173,7 +171,7 @@ def main():
                         "color": f"#{random.randint(0, 0xFFFFFF):06x}",
                         "history_limit": 500
                     }
-                    point_feature = gh.create_point_feature(point_coords, point_properties)
+                    point_feature = geo.create_point_feature(point_coords, point_properties)
                     points_features.append(point_feature)
                     feature_collection["features"].append(point_feature)
 
@@ -184,10 +182,10 @@ def main():
                     "color": "#ffcc00",
                     "history_limit": "1"
                 }
-                multipoint_feature = gh.create_multipoint_feature(observation_points, multipoint_properties)
+                multipoint_feature = geo.create_multipoint_feature(observation_points, multipoint_properties)
 
                 # Publish both individual points and as a MultiPoint
-                point_collection = gh.create_feature_collection(points_features)
+                point_collection = geo.create_feature_collection(points_features)
                 point_pub.publish(point_collection)
                 feature_collection["features"].append(multipoint_feature)
 
