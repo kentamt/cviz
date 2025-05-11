@@ -3,15 +3,132 @@ import math
 from functools import lru_cache
 from pyproj import Transformer, CRS
 
-# Default EPSG codes
+# Default EPSG codes for coordinate systems
 DEFAULT_SOURCE_EPSG = 4326  # WGS84 (lon/lat)
 DEFAULT_TARGET_EPSG = 32630  # UTM zone 30N (meters)
+
+# Global variables for EPSG configuration
+_source_epsg = DEFAULT_SOURCE_EPSG
+_target_epsg = DEFAULT_TARGET_EPSG
+
+
+def set_epsg(source_epsg=None, target_epsg=None):
+    """
+    Set the EPSG codes for coordinate transformations.
+
+    Args:
+        source_epsg (int, optional): Source coordinate system EPSG code
+        target_epsg (int, optional): Target coordinate system EPSG code
+
+    Returns:
+        dict: Current EPSG configuration
+    """
+    global _source_epsg, _target_epsg
+
+    if source_epsg is not None:
+        _source_epsg = source_epsg
+
+    if target_epsg is not None:
+        _target_epsg = target_epsg
+
+    # Clear the transformer cache when changing settings
+    _get_transformers.cache_clear()
+
+    return {
+        "source_epsg": _source_epsg,
+        "target_epsg": _target_epsg
+    }
+
+
+def get_epsg():
+    """
+    Get the current EPSG code configuration.
+
+    Returns:
+        dict: Current EPSG configuration
+    """
+    return {
+        "source_epsg": _source_epsg,
+        "target_epsg": _target_epsg
+    }
+
+
+def get_epsg_info():
+    """
+    Get detailed information about the current EPSG codes.
+
+    Returns:
+        dict: Information about the current coordinate systems
+    """
+    source_crs = CRS.from_epsg(_source_epsg)
+    target_crs = CRS.from_epsg(_target_epsg)
+
+    return {
+        "source": {
+            "epsg": _source_epsg,
+            "name": source_crs.name,
+            "type": source_crs.type_name,
+            "unit": source_crs.axis_info[0].unit_name
+        },
+        "target": {
+            "epsg": _target_epsg,
+            "name": target_crs.name,
+            "type": target_crs.type_name,
+            "unit": target_crs.axis_info[0].unit_name
+        }
+    }
+
+
+def setup_utm_for_location(lon, lat, source_epsg=DEFAULT_SOURCE_EPSG):
+    """
+    Configure transformers with the appropriate UTM zone for a given location.
+
+    Args:
+        lon (float): Longitude
+        lat (float): Latitude
+        source_epsg (int, optional): Source EPSG code
+
+    Returns:
+        dict: Updated EPSG configuration
+    """
+    utm_epsg = get_utm_epsg_for_location(lon, lat)
+    return set_epsg(source_epsg, utm_epsg)
+
+
+def get_utm_zone_for_lon(lon):
+    """Determine the UTM zone for a given longitude."""
+    return int((lon + 180) / 6) + 1
+
+
+def get_utm_epsg_for_location(lon, lat):
+    """
+    Get the appropriate UTM EPSG code for a given longitude and latitude.
+
+    Args:
+        lon (float): Longitude
+        lat (float): Latitude
+
+    Returns:
+        int: EPSG code for the UTM zone
+    """
+    zone = get_utm_zone_for_lon(lon)
+
+    # Northern hemisphere (including equator)
+    if lat >= 0:
+        return 32600 + zone
+    # Southern hemisphere
+    else:
+        return 32700 + zone
 
 
 # Cache the transformers for better performance
 @lru_cache(maxsize=8)
-def _get_transformers(source_epsg=DEFAULT_SOURCE_EPSG, target_epsg=DEFAULT_TARGET_EPSG):
+def _get_transformers(source_epsg=None, target_epsg=None):
     """Get cached coordinate transformers for the given EPSG codes."""
+    # Use global configuration if no specific codes provided
+    source_epsg = source_epsg or _source_epsg
+    target_epsg = target_epsg or _target_epsg
+
     source_crs = CRS.from_epsg(source_epsg)
     target_crs = CRS.from_epsg(target_epsg)
 
@@ -22,13 +139,13 @@ def _get_transformers(source_epsg=DEFAULT_SOURCE_EPSG, target_epsg=DEFAULT_TARGE
 
 
 # Coordinate transformation functions
-def lonlat_to_utm(lon, lat, source_epsg=DEFAULT_SOURCE_EPSG, target_epsg=DEFAULT_TARGET_EPSG):
+def lonlat_to_utm(lon, lat, source_epsg=None, target_epsg=None):
     """Convert WGS84 (longitude, latitude) to UTM coordinates (meters)."""
     to_target, _ = _get_transformers(source_epsg, target_epsg)
     return to_target.transform(lon, lat)
 
 
-def utm_to_lonlat(x, y, source_epsg=DEFAULT_SOURCE_EPSG, target_epsg=DEFAULT_TARGET_EPSG):
+def utm_to_lonlat(x, y, source_epsg=None, target_epsg=None):
     """Convert UTM coordinates (meters) to WGS84 (longitude, latitude)."""
     _, to_source = _get_transformers(source_epsg, target_epsg)
     return to_source.transform(x, y)
@@ -202,8 +319,10 @@ def generate_rectangle_coordinates_utm(center_x, center_y, width_m, height_m, ya
     ]
     return points
 
-def generate_rectangle_coordinates_lonlat(lon, lat, width_m, height_m, yaw=0):
-    x, y = lonlat_to_utm(lon, lat)
+
+def generate_rectangle_coordinates_lonlat(lon, lat, width_m, height_m, yaw=0, source_epsg=None, target_epsg=None):
+    """Generate a rectangle with center at lon/lat with given dimensions."""
+    x, y = lonlat_to_utm(lon, lat, source_epsg, target_epsg)
 
     agent_utm_coords = generate_rectangle_coordinates_utm(
         center_x=x,
@@ -213,9 +332,10 @@ def generate_rectangle_coordinates_lonlat(lon, lat, width_m, height_m, yaw=0):
         yaw=yaw
     )
 
-    return utm_rectangle_to_lonlat(agent_utm_coords)
+    return utm_rectangle_to_lonlat(agent_utm_coords, source_epsg, target_epsg)
 
-def utm_rectangle_to_lonlat(utm_points, source_epsg=DEFAULT_SOURCE_EPSG, target_epsg=DEFAULT_TARGET_EPSG):
+
+def utm_rectangle_to_lonlat(utm_points, source_epsg=None, target_epsg=None):
     """Convert rectangle points from UTM to longitude/latitude and close the polygon."""
     source_points = [utm_to_lonlat(p[0], p[1], source_epsg, target_epsg) for p in utm_points]
 
@@ -236,6 +356,144 @@ def generate_random_point_utm(center_x, center_y, radius_m=300):
     return [x, y]
 
 
-def utm_point_to_lonlat(utm_point, source_epsg=DEFAULT_SOURCE_EPSG, target_epsg=DEFAULT_TARGET_EPSG):
+def utm_point_to_lonlat(utm_point, source_epsg=None, target_epsg=None):
     """Convert a single point from UTM to longitude/latitude."""
     return utm_to_lonlat(utm_point[0], utm_point[1], source_epsg, target_epsg)
+
+
+def points_feature_collection(x_list, y_list, point_properties=None):
+    """
+    Create a GeoJSON FeatureCollection from lists of x and y coordinates.
+
+    Args:
+        x_list (list): List of x coordinates.
+        y_list (list): List of y coordinates.
+        point_properties (dict, optional): Properties to attach to each point feature.
+    """
+    points_features = []
+    for x, y in zip(x_list, y_list):
+        coords = [x, y]
+        point_feature = create_point_feature(coords, point_properties)
+        points_features.append(point_feature)
+
+    return create_feature_collection(points_features)
+
+
+def reproject_geometry(geometry, from_epsg, to_epsg):
+    """
+    Reproject GeoJSON geometry from one coordinate system to another.
+
+    Args:
+        geometry (dict): GeoJSON geometry to reproject
+        from_epsg (int): Source EPSG code
+        to_epsg (int): Target EPSG code
+
+    Returns:
+        dict: Reprojected GeoJSON geometry
+    """
+    geometry_type = geometry["type"]
+    coordinates = geometry["coordinates"]
+
+    # Set up transformer
+    to_target, _ = _get_transformers(from_epsg, to_epsg)
+
+    # Helper function to transform a single point
+    def transform_point(point):
+        return list(to_target.transform(point[0], point[1]))
+
+    # Transform coordinates based on geometry type
+    if geometry_type == "Point":
+        new_coords = transform_point(coordinates)
+    elif geometry_type == "MultiPoint" or geometry_type == "LineString":
+        new_coords = [transform_point(point) for point in coordinates]
+    elif geometry_type == "MultiLineString" or geometry_type == "Polygon":
+        new_coords = [[transform_point(point) for point in line] for line in coordinates]
+    elif geometry_type == "MultiPolygon":
+        new_coords = [[[transform_point(point) for point in ring] for ring in polygon] for polygon in coordinates]
+    else:
+        raise ValueError(f"Unsupported geometry type: {geometry_type}")
+
+    # Create a new geometry with transformed coordinates
+    return {
+        "type": geometry_type,
+        "coordinates": new_coords
+    }
+
+
+def reproject_feature(feature, from_epsg, to_epsg):
+    """
+    Reproject a GeoJSON feature from one coordinate system to another.
+
+    Args:
+        feature (dict): GeoJSON feature to reproject
+        from_epsg (int): Source EPSG code
+        to_epsg (int): Target EPSG code
+
+    Returns:
+        dict: Reprojected GeoJSON feature
+    """
+    # Create a new feature with reprojected geometry
+    new_feature = feature.copy()
+    new_feature["geometry"] = reproject_geometry(feature["geometry"], from_epsg, to_epsg)
+
+    return new_feature
+
+
+def reproject_feature_collection(feature_collection, from_epsg, to_epsg):
+    """
+    Reproject a GeoJSON FeatureCollection from one coordinate system to another.
+
+    Args:
+        feature_collection (dict): GeoJSON FeatureCollection to reproject
+        from_epsg (int): Source EPSG code
+        to_epsg (int): Target EPSG code
+
+    Returns:
+        dict: Reprojected GeoJSON FeatureCollection
+    """
+    # Reproject each feature in the collection
+    reprojected_features = [
+        reproject_feature(feature, from_epsg, to_epsg)
+        for feature in feature_collection["features"]
+    ]
+
+    # Create a new FeatureCollection with reprojected features
+    return {
+        "type": "FeatureCollection",
+        "features": reprojected_features
+    }
+
+
+# Example usage - this will only run if the script is executed directly
+if __name__ == "__main__":
+    # Example 1: Default configuration
+    print("Default EPSG configuration:", get_epsg())
+
+    # Example 2: Change EPSG configuration
+    set_epsg(4326, 32631)  # WGS84 to UTM zone 31N
+    print("Updated EPSG configuration:", get_epsg())
+
+    # Example 3: Auto-determine UTM zone based on location
+    london_lon, london_lat = -0.1278, 51.5074
+    setup_utm_for_location(london_lon, london_lat)
+    print("London's UTM configuration:", get_epsg())
+    print("CRS details:", get_epsg_info())
+
+    # Example 4: Generate geometry with custom EPSG
+    # Create a point in London
+    london_point = create_point_feature([london_lon, london_lat], {"name": "London"})
+    print("London point feature:", london_point)
+
+    # Reproject to a different coordinate system
+    reprojected_point = reproject_feature(london_point, 4326, 27700)  # OSGB 1936
+    print("Reprojected to OSGB 1936:", reprojected_point)
+
+    # Example 5: Create a rectangle around a specific location
+    rectangle_coords = generate_rectangle_coordinates_lonlat(
+        lon=london_lon,
+        lat=london_lat,
+        width_m=500,  # 500m width
+        height_m=300  # 300m height
+    )
+    rectangle_feature = create_polygon_feature(rectangle_coords, {"name": "London Area"})
+    print("Rectangle feature:", rectangle_feature)
