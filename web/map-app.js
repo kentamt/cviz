@@ -8,7 +8,7 @@ const mapApp = new MapRenderer({
     initialZoom: 12,
     mapStyle: 'mapbox://styles/mapbox/dark-v11',
 
-    mapboxAccessToken: 'pk.eyJ1Ijoia2VudGFtdCIsImEiOiJjbThtMHI3NnkxZmk1MmtzZDhzZW5hbHN3In0.taDwurloudkixpwxStqSEw',
+    mapboxAccessToken: 'pk.eyJ1Ijoia2VudGFtdCIsImEiOiJjbThtMHI3NnkxZmk1MmtzZDhzZW5hbHN3In0.taDwurloudkixpwxStqSEw.placeholder',
     wsOptions: {
         serverUrl: "ws://127.0.0.1:8000/ws"
     }
