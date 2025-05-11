@@ -202,6 +202,18 @@ def generate_rectangle_coordinates_utm(center_x, center_y, width_m, height_m, ya
     ]
     return points
 
+def generate_rectangle_coordinates_lonlat(lon, lat, width_m, height_m, yaw=0):
+    x, y = lonlat_to_utm(lon, lat)
+
+    agent_utm_coords = generate_rectangle_coordinates_utm(
+        center_x=x,
+        center_y=y,
+        width_m=width_m,
+        height_m=height_m,
+        yaw=yaw
+    )
+
+    return utm_rectangle_to_lonlat(agent_utm_coords)
 
 def utm_rectangle_to_lonlat(utm_points, source_epsg=DEFAULT_SOURCE_EPSG, target_epsg=DEFAULT_TARGET_EPSG):
     """Convert rectangle points from UTM to longitude/latitude and close the polygon."""
