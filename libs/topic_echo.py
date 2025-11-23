@@ -1,4 +1,5 @@
 # topic_echo.py - A more focused tool similar to rostopic echo
+import os
 import argparse
 import asyncio
 import json
@@ -9,11 +10,13 @@ from datetime import datetime
 from typing import Dict, Optional
 import sys
 
+DEFAULT_ZMQ_ENDPOINT = os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
+
 
 class TopicEcho:
     """Echo messages from a specific topic, similar to rostopic echo."""
 
-    def __init__(self, topic: str, zmq_endpoint="tcp://127.0.0.1:5555"):
+    def __init__(self, topic: str, zmq_endpoint=DEFAULT_ZMQ_ENDPOINT):
         self.topic = topic
         self.zmq_endpoint = zmq_endpoint
         self.context = zmq.Context()
@@ -129,7 +132,7 @@ class TopicEcho:
 async def main():
     parser = argparse.ArgumentParser(description='Echo messages from a topic (similar to rostopic echo)')
     parser.add_argument('topic', type=str, help='Topic name to echo')
-    parser.add_argument('--endpoint', '-e', type=str, default="tcp://127.0.0.1:5555",
+    parser.add_argument('--endpoint', '-e', type=str, default=DEFAULT_ZMQ_ENDPOINT,
                         help='ZMQ endpoint to connect to')
     parser.add_argument('--format', '-f', choices=['yaml', 'json'], default='yaml',
                         help='Output format')

@@ -10,6 +10,8 @@ import signal
 from datetime import datetime
 from pathlib import Path
 
+DEFAULT_ZMQ_ENDPOINT = os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -20,7 +22,7 @@ logging.basicConfig(
 class DataRecorder:
     """Records data from ZMQ publishers to a file."""
 
-    def __init__(self, topics=None, zmq_endpoint="tcp://127.0.0.1:5555", output_dir="recordings"):
+    def __init__(self, topics=None, zmq_endpoint=DEFAULT_ZMQ_ENDPOINT, output_dir="recordings"):
         """Initialize the DataRecorder.
 
         Args:
@@ -167,7 +169,7 @@ async def main():
     """Main function to run the recorder."""
     parser = argparse.ArgumentParser(description='Cviz Data Recorder')
     parser.add_argument('--topics', type=str, help='Comma-separated list of topics to record')
-    parser.add_argument('--endpoint', type=str, default="tcp://127.0.0.1:5555", help='ZMQ endpoint to connect to')
+    parser.add_argument('--endpoint', type=str, default=DEFAULT_ZMQ_ENDPOINT, help='ZMQ endpoint to connect to')
     parser.add_argument('--output-dir', type=str, default="recordings", help='Directory to save recordings')
     args = parser.parse_args()
 

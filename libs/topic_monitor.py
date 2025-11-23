@@ -1,4 +1,5 @@
 # topic_monitor.py
+import os
 import argparse
 import asyncio
 import json
@@ -11,11 +12,13 @@ from typing import Dict, List, Optional
 from collections import defaultdict
 import logging
 
+DEFAULT_ZMQ_ENDPOINT = os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
+
 
 class TopicMonitor:
     """A command-line tool to monitor topics published via ZMQ."""
 
-    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555", verbose=False):
+    def __init__(self, zmq_endpoint=DEFAULT_ZMQ_ENDPOINT, verbose=False):
         self.zmq_endpoint = zmq_endpoint
         self.verbose = verbose
         self.context = zmq.Context()
@@ -229,7 +232,7 @@ async def main():
     parser.add_argument('command', nargs='?', choices=['echo', 'list'], default='echo',
                         help='Command to run (echo or list)')
     parser.add_argument('topics', nargs='*', help='Topics to monitor (if not specified, monitors all)')
-    parser.add_argument('--endpoint', '-e', type=str, default="tcp://127.0.0.1:5555",
+    parser.add_argument('--endpoint', '-e', type=str, default=DEFAULT_ZMQ_ENDPOINT,
                         help='ZMQ endpoint to connect to')
     parser.add_argument('--verbose', '-v', action='store_true',
                         help='Show full message content')

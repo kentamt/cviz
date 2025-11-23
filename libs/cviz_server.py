@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 import asyncio
@@ -18,12 +19,13 @@ logging.basicConfig(
 class CvizServerManager:
     """Manages WebSocket connections and ZMQ subscriptions for Cviz"""
 
-    def __init__(self):
+    def __init__(self, zmq_endpoint=None):
         self.clients = set()
         self.sub_list = []
         self.last_time = {}
         self.running = False
         self.task = None
+        self.zmq_endpoint = zmq_endpoint or os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
 
         # Message cache to store the latest message for each topic
         # This ensures new clients can receive the current state immediately
@@ -35,7 +37,7 @@ class CvizServerManager:
 
     def add_subscriber(self, topic_name, history_limit=1):
         """Add a new subscriber with optional history retention."""
-        new_sub = Subscriber(topic_name=topic_name)
+        new_sub = Subscriber(topic_name=topic_name, zmq_endpoint=self.zmq_endpoint)
         self.sub_list.append(new_sub)
         self.history_limits[topic_name] = history_limit
         return new_sub
@@ -145,4 +147,3 @@ class CvizServerManager:
                 await self.task
             except asyncio.CancelledError:
                 pass
-

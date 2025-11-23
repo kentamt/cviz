@@ -1,22 +1,25 @@
-import time 
+import os
+import time
 import zmq
 import json
 import asyncio
 import logging
 
+DEFAULT_ZMQ_ENDPOINT = os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
+
 class Subscriber:
     def __init__(self,
                  topic_name: str,
-                 zmq_endpoint="tcp://127.0.0.1:5555",
+                 zmq_endpoint=None,
                  msg_freq=40):
         """Initialise Subscriber."""
         
         self.topic = topic_name
+        self.zmq_endpoint = zmq_endpoint or DEFAULT_ZMQ_ENDPOINT
         self.zmq_context = zmq.Context()
         self.zmq_socket = self.zmq_context.socket(zmq.SUB)
-        self.zmq_socket.connect(zmq_endpoint)
+        self.zmq_socket.connect(self.zmq_endpoint)
         self.zmq_socket.setsockopt_string(zmq.SUBSCRIBE, topic_name)
-        self.topic = topic_name
         self.received_messages = []
         self.msg_freq = msg_freq  # Frequency of messages to receive
         
@@ -78,5 +81,4 @@ async def main():
     
 if __name__ == "__main__":
     asyncio.run(main())
-
 
