@@ -1,6 +1,8 @@
 // topics-panel.js
 import { Logger } from './geometry-renderer.js';
 
+const POLL_INTERVAL_MS = 5000;
+
 export class TopicsPanel {
     constructor(wsManager, options = {}) {
         this.wsManager = wsManager;
@@ -13,9 +15,12 @@ export class TopicsPanel {
 
         this.topics = [];
         this.selectedTopics = new Set(wsManager ? Array.from(wsManager.desiredTopics || []) : []);
+        this.poller = null;
 
         this.createPanel();
         this.attachEvents();
+        this.renderTopics();
+        this.startPolling();
     }
 
     createPanel() {
@@ -145,5 +150,28 @@ export class TopicsPanel {
         const topicsArray = Array.from(this.selectedTopics);
         Logger.log(`Updating topics selection: ${topicsArray.join(', ')}`);
         this.wsManager.setTopics(topicsArray);
+    }
+
+    startPolling() {
+        this.fetchTopics();
+        this.poller = setInterval(() => this.fetchTopics(), POLL_INTERVAL_MS);
+    }
+
+    async fetchTopics() {
+        try {
+            const response = await fetch('/topics');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const payload = await response.json();
+            if (payload && Array.isArray(payload.topics)) {
+                this.setTopics(payload.topics);
+            } else {
+                this.setTopics([]);
+            }
+        } catch (error) {
+            Logger.warn(`Failed to fetch topics: ${error.message}`);
+            this.setTopics([]);
+        }
     }
 }

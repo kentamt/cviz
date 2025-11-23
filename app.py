@@ -81,7 +81,14 @@ async def health_check():
         "status": "ok",
         "topics": get_topics_from_env(),
         "example": get_example_from_env(),
-        "available_topics": list(sorted({*get_topics_from_env(), *cviz_manager.get_known_topics()}))
+        "available_topics": list(sorted(cviz_manager.get_active_topics()))
+    }
+
+
+@app.get("/topics")
+async def list_topics():
+    return {
+        "topics": list(sorted(cviz_manager.get_active_topics()))
     }
 
 

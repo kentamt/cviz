@@ -90,9 +90,6 @@ export class WebSocketManager {
         }
         this.desiredTopics = new Set(initialTopics);
 
-        // Create debug element for connection status
-        this.createDebugPanel();
-
         // Delay initialization to ensure DOM is ready
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => this.init());
@@ -124,96 +121,6 @@ export class WebSocketManager {
             Logger.warn(`Unable to parse topics from query string: ${error.message}`);
             return [];
         }
-    }
-
-    createDebugPanel() {
-        // Create a debug panel to display connection status
-        const debugPanel = document.createElement('div');
-        debugPanel.id = 'ws-debug-panel';
-        debugPanel.style.position = 'fixed';
-        debugPanel.style.bottom = '10px';
-        debugPanel.style.right = '10px';
-        debugPanel.style.backgroundColor = 'rgba(0,0,0,0.7)';
-        debugPanel.style.color = 'white';
-        debugPanel.style.padding = '10px';
-        debugPanel.style.borderRadius = '5px';
-        debugPanel.style.fontFamily = 'monospace';
-        debugPanel.style.fontSize = '12px';
-        debugPanel.style.zIndex = '9999';
-        debugPanel.style.maxWidth = '400px';
-        debugPanel.style.maxHeight = '200px';
-        debugPanel.style.overflowY = 'auto';
-
-        // Add initial content
-        debugPanel.innerHTML = `
-            <div><strong>WebSocket Status:</strong> <span id="ws-status">Initializing...</span></div>
-            <div><strong>Connection URL:</strong> <span id="ws-url">${getWebSocketUrl()}</span></div>
-            <div><strong>Connection Attempts:</strong> <span id="ws-attempts">0</span></div>
-            <div><strong>Network Info:</strong> <span id="ws-network">Checking...</span></div>
-            <div><strong>Last Error:</strong> <span id="ws-error">None</span></div>
-            <button id="ws-test-btn" style="margin-top: 5px; padding: 2px 5px;">Test Connection</button>
-        `;
-
-        // Append to document when ready
-        if (document.body) {
-            document.body.appendChild(debugPanel);
-            document.getElementById('ws-test-btn').addEventListener('click', () => this.testConnection());
-        } else {
-            document.addEventListener('DOMContentLoaded', () => {
-                document.body.appendChild(debugPanel);
-                document.getElementById('ws-test-btn').addEventListener('click', () => this.testConnection());
-            });
-        }
-
-        this.debugPanel = debugPanel;
-    }
-
-    updateDebugPanel(status, error = null) {
-        if (!document.getElementById('ws-status')) return;
-
-        document.getElementById('ws-status').textContent = status;
-        document.getElementById('ws-attempts').textContent = this.reconnectAttempts;
-        document.getElementById('ws-url').textContent = getWebSocketUrl();
-
-        if (error) {
-            document.getElementById('ws-error').textContent = error;
-            document.getElementById('ws-error').style.color = 'red';
-        }
-
-        // Get network information
-        const networkInfo = [];
-        if (window.location && window.location.hostname) {
-            networkInfo.push(`Page host: ${window.location.hostname}:${window.location.port}`);
-        }
-
-        // Check if running in Docker
-        fetch('/health')
-            .then(response => response.json())
-            .then(data => {
-                networkInfo.push(`Server health: ${data.status}`);
-                document.getElementById('ws-network').innerHTML = networkInfo.join('<br>');
-            })
-            .catch(err => {
-                networkInfo.push(`Server health check failed: ${err.message}`);
-                document.getElementById('ws-network').innerHTML = networkInfo.join('<br>');
-            });
-    }
-
-    testConnection() {
-        // Attempt to create a temporary WebSocket connection to test connectivity
-        this.updateDebugPanel("Testing connection...");
-
-        // Send a ping request to the health endpoint instead of creating a WebSocket
-        fetch('/health')
-            .then(response => response.json())
-            .then(data => {
-                Logger.log("Server health check succeeded:", data);
-                this.updateDebugPanel(`Connection test successful: ${JSON.stringify(data)}`);
-            })
-            .catch(error => {
-                Logger.error(`Connection test failed: ${error.message || "Unknown error"}`);
-                this.updateDebugPanel("Connection test failed", error.message || "Unknown error");
-            });
     }
 
     init() {
@@ -273,9 +180,6 @@ export class WebSocketManager {
         }, 1000);
 
         this.topicPanel = new TopicsPanel(this);
-        if (this.desiredTopics.size > 0) {
-            this.topicPanel.setTopics(Array.from(this.desiredTopics));
-        }
         this.topicPanel.updateSelection(this.desiredTopics);
     }
 
@@ -289,8 +193,7 @@ export class WebSocketManager {
         fetch('/health')
            .then(response => response.json())
            .then(data => {
-               Logger.log(`Server health check: ${JSON.stringify(data)}`);
-               this.updateDebugPanel(`Health OK: ${JSON.stringify(data)}`);
+                Logger.log(`Server health check: ${JSON.stringify(data)}`);
 
                if (Array.isArray(data.topics)) {
                    this.healthTopics = data.topics;
@@ -304,13 +207,11 @@ export class WebSocketManager {
             })
             .catch(error => {
                 Logger.error(`Server health check failed: ${error.message}`);
-                this.updateDebugPanel("Health check failed", error.message);
             });
     }
 
     connectWebSocket() {
         Logger.log(`Connecting to ${getWebSocketUrl()}...`);
-        this.updateDebugPanel("Connecting...");
 
         try {
             this.ws = new WebSocket(getWebSocketUrl());
@@ -319,7 +220,6 @@ export class WebSocketManager {
             const connectionTimeout = setTimeout(() => {
                 if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
                     Logger.error("WebSocket connection timeout");
-                    this.updateDebugPanel("Connection timeout");
                     this.ws.close();
                 }
             }, 5000);
@@ -328,7 +228,6 @@ export class WebSocketManager {
                 clearTimeout(connectionTimeout);
                 Logger.log("WebSocket connected successfully!");
                 this.reconnectAttempts = 0;
-                this.updateDebugPanel("Connected");
 
                  const hadPending = this.pendingCommands.length > 0;
                  this.flushPendingCommands();
@@ -354,13 +253,11 @@ export class WebSocketManager {
                 }
 
                 Logger.error(`WebSocket detailed error: ${detailedError}`);
-                this.updateDebugPanel("Connection error", `${errorMsg} (${detailedError})`);
             };
 
             this.ws.onclose = (event) => {
                 clearTimeout(connectionTimeout);
                 Logger.warn(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason || "No reason provided"}`);
-                this.updateDebugPanel("Disconnected", `Code: ${event.code}, Reason: ${event.reason || "No reason"}`);
                 this.ensureSubscriptionCommandQueued();
                 this.reconnect();
             };
@@ -370,7 +267,6 @@ export class WebSocketManager {
             };
         } catch (error) {
             Logger.error(`WebSocket creation error: ${error.message}`);
-            this.updateDebugPanel("Creation error", error.message);
             this.reconnect();
         }
     }
@@ -817,7 +713,6 @@ export class WebSocketManager {
             const timeout = BASE_RECONNECT_TIMEOUT * Math.pow(2, this.reconnectAttempts);
 
             Logger.warn(`Reconnecting in ${timeout / 1000} seconds... (Attempt ${this.reconnectAttempts + 1})`);
-            this.updateDebugPanel(`Reconnecting in ${timeout / 1000}s (${this.reconnectAttempts + 1}/${this.options.maxReconnectAttempts})`);
 
             this.reconnectAttempts++;
 
@@ -826,7 +721,6 @@ export class WebSocketManager {
             }, timeout);
         } else {
             Logger.error("Max reconnection attempts reached. Please check the server.");
-            this.updateDebugPanel("Failed - max attempts reached");
         }
     }
 }

@@ -176,13 +176,9 @@ class CvizServerManager:
         else:
             logging.warning(f"Unknown client action: {action}")
 
-    def get_known_topics(self):
-        """Return all topics known to the server (static + cached)."""
-        topics = set(self.static_topics)
-        topics.update(self.subscribers.keys())
-        topics.update(self.message_cache.keys())
-        topics.update(self.topic_clients.keys())
-        return topics
+    def get_active_topics(self):
+        """Return topics that have delivered at least one message."""
+        return set(self.message_cache.keys())
 
     async def remove_client(self, websocket: WebSocket):
         """Remove a WebSocket client"""
