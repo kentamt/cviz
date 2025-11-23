@@ -307,4 +307,22 @@ export class MapRenderer {
         this.mapboxRenderer.addDebugMarker(lng, lat, color);
         console.log(`Added debug marker at [${lng}, ${lat}]`);
     }
+
+    setTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.setTopics === 'function') {
+            this.wsManager.setTopics(topics);
+        }
+    }
+
+    subscribeToTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.subscribeToTopics === 'function') {
+            this.wsManager.subscribeToTopics(topics);
+        }
+    }
+
+    unsubscribeFromTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.unsubscribeFromTopics === 'function') {
+            this.wsManager.unsubscribeFromTopics(topics);
+        }
+    }
 }

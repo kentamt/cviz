@@ -28,6 +28,33 @@ function getWebSocketUrl() {
     return `${protocol}//${host}/ws`;
 }
 
+function normalizeTopicsInput(input) {
+    if (!input) {
+        return [];
+    }
+
+    let topics = [];
+    if (Array.isArray(input)) {
+        topics = input;
+    } else if (typeof input === 'string') {
+        topics = input.split(',');
+    } else {
+        return [];
+    }
+
+    return topics
+        .map(topic => {
+            if (typeof topic === 'string') {
+                return topic.trim();
+            }
+            if (topic === null || topic === undefined) {
+                return '';
+            }
+            return String(topic).trim();
+        })
+        .filter(topic => topic.length > 0);
+}
+
 export class WebSocketManager {
     constructor(options = {}) {
         // Dynamically determine the WebSocket URL
@@ -42,6 +69,20 @@ export class WebSocketManager {
             ...options
         };
 
+        this.autoSubscribeFromHealth = this.options.autoSubscribeFromHealth !== false;
+        this.pendingCommands = [];
+        this.healthTopics = [];
+
+        const optionTopics = normalizeTopicsInput(this.options.topics || this.options.defaultTopics);
+        const globalTopicsSource = typeof window !== 'undefined' ? window.CVIZ_TOPICS : undefined;
+        const globalTopics = normalizeTopicsInput(globalTopicsSource);
+        let initialTopics = optionTopics.length > 0 ? optionTopics : globalTopics;
+        const queryTopics = this.getTopicsFromQuery();
+        if (initialTopics.length === 0 && queryTopics.length > 0) {
+            initialTopics = queryTopics;
+        }
+        this.desiredTopics = new Set(initialTopics);
+
         // Create debug element for connection status
         this.createDebugPanel();
 
@@ -55,6 +96,27 @@ export class WebSocketManager {
         // Store decay time for each topic
         this.lifeTimes = {};
         this.historyLimits = {};
+
+        if (this.desiredTopics.size > 0) {
+            this.ensureSubscriptionCommandQueued();
+        }
+    }
+
+    getTopicsFromQuery() {
+        if (typeof window === 'undefined' || !window.location) {
+            return [];
+        }
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('topics')) {
+                return [];
+            }
+            return normalizeTopicsInput(params.get('topics'));
+        } catch (error) {
+            Logger.warn(`Unable to parse topics from query string: ${error.message}`);
+            return [];
+        }
     }
 
     createDebugPanel() {
@@ -216,6 +278,13 @@ export class WebSocketManager {
             .then(data => {
                 Logger.log(`Server health check: ${JSON.stringify(data)}`);
                 this.updateDebugPanel(`Health OK: ${JSON.stringify(data)}`);
+
+                if (Array.isArray(data.topics)) {
+                    this.healthTopics = data.topics;
+                    if (this.autoSubscribeFromHealth && this.desiredTopics.size === 0 && this.healthTopics.length > 0) {
+                        this.setTopics(this.healthTopics);
+                    }
+                }
             })
             .catch(error => {
                 Logger.error(`Server health check failed: ${error.message}`);
@@ -244,6 +313,17 @@ export class WebSocketManager {
                 Logger.log("WebSocket connected successfully!");
                 this.reconnectAttempts = 0;
                 this.updateDebugPanel("Connected");
+
+                 const hadPending = this.pendingCommands.length > 0;
+                 this.flushPendingCommands();
+
+                 if (!hadPending) {
+                     if (this.desiredTopics.size > 0) {
+                         this.sendSubscriptionUpdate();
+                     } else if (this.autoSubscribeFromHealth && this.healthTopics.length > 0) {
+                         this.setTopics(this.healthTopics);
+                     }
+                 }
             };
 
             this.ws.onerror = (error) => {
@@ -265,6 +345,7 @@ export class WebSocketManager {
                 clearTimeout(connectionTimeout);
                 Logger.warn(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason || "No reason provided"}`);
                 this.updateDebugPanel("Disconnected", `Code: ${event.code}, Reason: ${event.reason || "No reason"}`);
+                this.ensureSubscriptionCommandQueued();
                 this.reconnect();
             };
 
@@ -540,6 +621,64 @@ export class WebSocketManager {
             },
             properties
         };
+    }
+
+    queueCommand(payload) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(payload));
+            return;
+        }
+
+        if (payload.action === 'set_topics') {
+            this.pendingCommands = this.pendingCommands.filter(cmd => cmd.action !== 'set_topics');
+        }
+
+        this.pendingCommands.push(payload);
+    }
+
+    flushPendingCommands() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            return;
+        }
+
+        while (this.pendingCommands.length > 0) {
+            const payload = this.pendingCommands.shift();
+            this.ws.send(JSON.stringify(payload));
+        }
+    }
+
+    ensureSubscriptionCommandQueued() {
+        if (this.desiredTopics.size === 0) {
+            return;
+        }
+
+        this.queueCommand({
+            action: 'set_topics',
+            topics: Array.from(this.desiredTopics)
+        });
+    }
+
+    setTopics(topics) {
+        const normalized = normalizeTopicsInput(topics);
+        this.desiredTopics = new Set(normalized);
+        this.sendSubscriptionUpdate();
+    }
+
+    subscribeToTopics(topics) {
+        const normalized = normalizeTopicsInput(topics);
+        normalized.forEach(topic => this.desiredTopics.add(topic));
+        this.sendSubscriptionUpdate();
+    }
+
+    unsubscribeFromTopics(topics) {
+        const normalized = normalizeTopicsInput(topics);
+        normalized.forEach(topic => this.desiredTopics.delete(topic));
+        this.sendSubscriptionUpdate();
+    }
+
+    sendSubscriptionUpdate() {
+        this.ensureSubscriptionCommandQueued();
+        this.flushPendingCommands();
     }
 
     processGeoJSONMessage(data) {

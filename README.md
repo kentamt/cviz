@@ -80,6 +80,7 @@ Cviz renders geometries based on Mapbox. You can use your own Mapbox token by re
   export CVIZ_ZMQ_ENDPOINT="tcp://192.168.1.10:6000"
   uvicorn app:app --host 0.0.0.0 --reload
   ```
+- Frontend topic selection: pass `?topics=point,multipolygon` in the URL (or define `window.CVIZ_TOPICS = ['point','multipolygon']` before the app loads) to subscribe only to specific topics. You can also adjust dynamically from the console with `window.mapApp.setTopics(['point'])` or `window.canvasApp.subscribeToTopics(['linestring'])`.
 
 ## How it works
 You can send topics to the Cviz server, and Cviz sends data via Websockets to the frontend. 

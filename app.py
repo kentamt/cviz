@@ -42,7 +42,7 @@ def setup_topics():
 
     # Add subscribers with history limits where needed
     for topic_name in topics:
-        cviz_manager.add_subscriber(topic_name=topic_name)
+        cviz_manager.add_subscriber(topic_name=topic_name, permanent=True)
         logging.info(f"Added subscriber for topic: {topic_name}")
 
 
@@ -92,13 +92,14 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Just wait for the connection to close
             data = await websocket.receive_text()
+            await cviz_manager.handle_client_message(websocket, data)
 
     except WebSocketDisconnect:
-        cviz_manager.remove_client(websocket)
+        await cviz_manager.remove_client(websocket)
 
     except Exception as e:
         logging.error(f"WebSocket error: {e}")
-        cviz_manager.remove_client(websocket)
+        await cviz_manager.remove_client(websocket)
 
 
 # Mount static files
