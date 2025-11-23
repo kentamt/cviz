@@ -348,6 +348,77 @@ export class GeometryRenderer {
         return TOPIC_STYLES.default[dataType] || 0xffffff;
     }
 
+    clearTopic(topic) {
+        if (!topic) {
+            return;
+        }
+
+        let removed = false;
+        Object.keys(this.geometries).forEach(type => {
+            if (this.geometries[type][topic]) {
+                this.geometries[type][topic].forEach(geometry => {
+                    if (geometry && !geometry.destroyed) {
+                        this.geometryContainers[type].removeChild(geometry);
+                        geometry.destroy({children: true});
+                    }
+                });
+                delete this.geometries[type][topic];
+                removed = true;
+            }
+        });
+
+        Object.keys(this.geometryData).forEach(type => {
+            if (this.geometryData[type][topic]) {
+                delete this.geometryData[type][topic];
+                removed = true;
+            }
+        });
+
+        if (this.historyLimits[topic]) {
+            delete this.historyLimits[topic];
+        }
+
+        if (this.lifeTimes[topic]) {
+            delete this.lifeTimes[topic];
+        }
+
+        if (removed) {
+            this.redrawAllGeometries();
+        }
+    }
+
+    filterTopics(allowedTopicsSet) {
+        let removed = false;
+
+        Object.keys(this.geometries).forEach(type => {
+            Object.keys(this.geometries[type]).forEach(topic => {
+                if (!allowedTopicsSet.has(topic)) {
+                    this.geometries[type][topic].forEach(geometry => {
+                        if (geometry && !geometry.destroyed) {
+                            this.geometryContainers[type].removeChild(geometry);
+                            geometry.destroy({children: true});
+                        }
+                    });
+                    delete this.geometries[type][topic];
+                    removed = true;
+                }
+            });
+        });
+
+        Object.keys(this.geometryData).forEach(type => {
+            Object.keys(this.geometryData[type]).forEach(topic => {
+                if (!allowedTopicsSet.has(topic)) {
+                    delete this.geometryData[type][topic];
+                    removed = true;
+                }
+            });
+        });
+
+        if (removed) {
+            this.redrawAllGeometries();
+        }
+    }
+
     // Redraw all stored geometries
     redrawAllGeometries() {
         // Clear all containers first

@@ -1,6 +1,7 @@
 // websocket-manager.js
 import { GeometryRenderer, Logger } from './geometry-renderer.js';
 import { MapboxRenderer } from './mapbox-renderer.js';
+import { TopicsPanel } from './topics-panel.js';
 
 // Default WebSocket settings
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -18,6 +19,8 @@ const DEFAULT_HISTORY_LIMITS = {
     Feature: 1,
     FeatureCollection: 1
 };
+
+const TOPICS_STORAGE_KEY = 'cviz_selected_topics';
 
 // Determine the WebSocket URL dynamically based on the current page location
 function getWebSocketUrl() {
@@ -72,13 +75,17 @@ export class WebSocketManager {
         this.autoSubscribeFromHealth = this.options.autoSubscribeFromHealth !== false;
         this.pendingCommands = [];
         this.healthTopics = [];
+        this.topicPanel = null;
 
         const optionTopics = normalizeTopicsInput(this.options.topics || this.options.defaultTopics);
         const globalTopicsSource = typeof window !== 'undefined' ? window.CVIZ_TOPICS : undefined;
         const globalTopics = normalizeTopicsInput(globalTopicsSource);
-        let initialTopics = optionTopics.length > 0 ? optionTopics : globalTopics;
+        const storedTopics = this.loadStoredTopics();
+        let initialTopics = optionTopics.length > 0 ? optionTopics : (storedTopics.length > 0 ? storedTopics : globalTopics);
         const queryTopics = this.getTopicsFromQuery();
         if (initialTopics.length === 0 && queryTopics.length > 0) {
+            initialTopics = queryTopics;
+        } else if (queryTopics.length > 0) {
             initialTopics = queryTopics;
         }
         this.desiredTopics = new Set(initialTopics);
@@ -264,6 +271,12 @@ export class WebSocketManager {
         setTimeout(() => {
             this.connectWebSocket();
         }, 1000);
+
+        this.topicPanel = new TopicsPanel(this);
+        if (this.desiredTopics.size > 0) {
+            this.topicPanel.setTopics(Array.from(this.desiredTopics));
+        }
+        this.topicPanel.updateSelection(this.desiredTopics);
     }
 
     logNetworkInfo() {
@@ -274,17 +287,20 @@ export class WebSocketManager {
 
         // Try to fetch the server health endpoint
         fetch('/health')
-            .then(response => response.json())
-            .then(data => {
-                Logger.log(`Server health check: ${JSON.stringify(data)}`);
-                this.updateDebugPanel(`Health OK: ${JSON.stringify(data)}`);
+           .then(response => response.json())
+           .then(data => {
+               Logger.log(`Server health check: ${JSON.stringify(data)}`);
+               this.updateDebugPanel(`Health OK: ${JSON.stringify(data)}`);
 
-                if (Array.isArray(data.topics)) {
-                    this.healthTopics = data.topics;
-                    if (this.autoSubscribeFromHealth && this.desiredTopics.size === 0 && this.healthTopics.length > 0) {
-                        this.setTopics(this.healthTopics);
+               if (Array.isArray(data.topics)) {
+                   this.healthTopics = data.topics;
+                   if (this.autoSubscribeFromHealth && this.desiredTopics.size === 0 && this.healthTopics.length > 0) {
+                       this.setTopics(this.healthTopics);
+                   }
+                    if (this.topicPanel) {
+                        this.topicPanel.setTopics(data.available_topics || this.healthTopics);
                     }
-                }
+               }
             })
             .catch(error => {
                 Logger.error(`Server health check failed: ${error.message}`);
@@ -660,25 +676,114 @@ export class WebSocketManager {
 
     setTopics(topics) {
         const normalized = normalizeTopicsInput(topics);
+        const previous = new Set(this.desiredTopics);
         this.desiredTopics = new Set(normalized);
+        const removed = [...previous].filter(topic => !this.desiredTopics.has(topic));
+        this.clearRendererTopics(removed);
+        this.filterRendererTopics(this.desiredTopics);
+        this.persistTopics();
+        if (this.topicPanel) {
+            this.topicPanel.updateSelection(this.desiredTopics);
+        }
         this.sendSubscriptionUpdate();
     }
 
     subscribeToTopics(topics) {
         const normalized = normalizeTopicsInput(topics);
         normalized.forEach(topic => this.desiredTopics.add(topic));
+        this.persistTopics();
+        if (this.topicPanel) {
+            this.topicPanel.updateSelection(this.desiredTopics);
+        }
         this.sendSubscriptionUpdate();
     }
 
     unsubscribeFromTopics(topics) {
         const normalized = normalizeTopicsInput(topics);
-        normalized.forEach(topic => this.desiredTopics.delete(topic));
+        const removed = [];
+        normalized.forEach(topic => {
+            if (this.desiredTopics.has(topic)) {
+                this.desiredTopics.delete(topic);
+                removed.push(topic);
+            }
+        });
+        this.clearRendererTopics(removed);
+        this.persistTopics();
+        if (this.topicPanel) {
+            this.topicPanel.updateSelection(this.desiredTopics);
+        }
         this.sendSubscriptionUpdate();
     }
 
     sendSubscriptionUpdate() {
         this.ensureSubscriptionCommandQueued();
         this.flushPendingCommands();
+    }
+
+    clearRendererTopics(topics) {
+        if (!this.renderer || !topics || topics.length === 0) {
+            return;
+        }
+
+        topics.forEach(topic => {
+            if (this.renderer && typeof this.renderer.clearTopic === 'function') {
+                this.renderer.clearTopic(topic);
+            }
+        });
+
+        this.refreshRenderer();
+    }
+
+    filterRendererTopics(allowedTopicsSet) {
+        if (!this.renderer || !allowedTopicsSet) {
+            return;
+        }
+
+        if (typeof this.renderer.filterTopics === 'function') {
+            this.renderer.filterTopics(allowedTopicsSet);
+        } else {
+            this.refreshRenderer();
+        }
+    }
+
+    refreshRenderer() {
+        if (!this.renderer) return;
+
+        if (typeof this.renderer.refreshSources === 'function') {
+            this.renderer.refreshSources();
+        } else if (typeof this.renderer.redrawAllGeometries === 'function') {
+            this.renderer.redrawAllGeometries();
+        }
+    }
+
+    loadStoredTopics() {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return [];
+        }
+
+        try {
+            const stored = window.localStorage.getItem(TOPICS_STORAGE_KEY);
+            if (!stored) {
+                return [];
+            }
+            const parsed = JSON.parse(stored);
+            return normalizeTopicsInput(parsed);
+        } catch (error) {
+            Logger.warn(`Failed to load stored topics: ${error.message}`);
+            return [];
+        }
+    }
+
+    persistTopics() {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(TOPICS_STORAGE_KEY, JSON.stringify(Array.from(this.desiredTopics)));
+        } catch (error) {
+            Logger.warn(`Failed to persist topics: ${error.message}`);
+        }
     }
 
     processGeoJSONMessage(data) {

@@ -80,7 +80,8 @@ async def health_check():
     return {
         "status": "ok",
         "topics": get_topics_from_env(),
-        "example": get_example_from_env()
+        "example": get_example_from_env(),
+        "available_topics": list(sorted({*get_topics_from_env(), *cviz_manager.get_known_topics()}))
     }
 
 

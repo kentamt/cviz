@@ -491,4 +491,10 @@ export class CanvasRenderer {
             this.wsManager.unsubscribeFromTopics(topics);
         }
     }
+
+    clearTopic(topic) {
+        if (this.geometryRenderer && typeof this.geometryRenderer.clearTopic === 'function') {
+            this.geometryRenderer.clearTopic(topic);
+        }
+    }
 }

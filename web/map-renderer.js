@@ -325,4 +325,10 @@ export class MapRenderer {
             this.wsManager.unsubscribeFromTopics(topics);
         }
     }
+
+    clearTopic(topic) {
+        if (this.mapboxRenderer && typeof this.mapboxRenderer.clearTopic === 'function') {
+            this.mapboxRenderer.clearTopic(topic);
+        }
+    }
 }
