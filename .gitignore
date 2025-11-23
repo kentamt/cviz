@@ -188,4 +188,4 @@ cython_debug/
 recordings/
 videos
 
-map-app.js
+web/map-app.js
