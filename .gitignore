@@ -187,3 +187,5 @@ cython_debug/
 # ignore recordings
 recordings/
 videos
+
+web/map-app.js

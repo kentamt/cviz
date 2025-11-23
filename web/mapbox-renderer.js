@@ -676,4 +676,60 @@ export class MapboxRenderer {
             .setHTML(`<div>[${lng.toFixed(5)}, ${lat.toFixed(5)}]</div>`)
             .addTo(this.map);
     }
+
+    clearTopic(topic) {
+        if (!topic) {
+            return;
+        }
+
+        let removed = false;
+        Object.keys(this.geometryData).forEach(type => {
+            if (this.geometryData[type] && this.geometryData[type][topic]) {
+                delete this.geometryData[type][topic];
+                this.updateMapSource(type);
+                removed = true;
+            }
+        });
+
+        Object.keys(this.historyLimits).forEach(key => {
+            if (key === topic) {
+                delete this.historyLimits[key];
+            }
+        });
+
+        Object.keys(this.lifeTimes).forEach(key => {
+            if (key === topic) {
+                delete this.lifeTimes[key];
+            }
+        });
+
+        if (removed) {
+            this.refreshSources();
+        }
+    }
+
+    filterTopics(allowedTopicsSet) {
+        Object.keys(this.geometryData).forEach(type => {
+            if (!this.geometryData[type]) {
+                return;
+            }
+            Object.keys(this.geometryData[type]).forEach(topic => {
+                if (!allowedTopicsSet.has(topic)) {
+                    delete this.geometryData[type][topic];
+                }
+            });
+        });
+
+        this.refreshSources();
+    }
+
+    refreshSources() {
+        if (!this.map || !this.mapLoaded) {
+            return;
+        }
+
+        Object.keys(this.sources || {}).forEach(type => {
+            this.updateMapSource(type);
+        });
+    }
 }

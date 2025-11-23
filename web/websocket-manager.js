@@ -1,6 +1,7 @@
 // websocket-manager.js
 import { GeometryRenderer, Logger } from './geometry-renderer.js';
 import { MapboxRenderer } from './mapbox-renderer.js';
+import { TopicsPanel } from './topics-panel.js';
 
 // Default WebSocket settings
 const MAX_RECONNECT_ATTEMPTS = 5;
@@ -19,6 +20,8 @@ const DEFAULT_HISTORY_LIMITS = {
     FeatureCollection: 1
 };
 
+const TOPICS_STORAGE_KEY = 'cviz_selected_topics';
+
 // Determine the WebSocket URL dynamically based on the current page location
 function getWebSocketUrl() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -26,6 +29,33 @@ function getWebSocketUrl() {
 
     // Use the same host that's serving the web page, with the path to the WebSocket endpoint
     return `${protocol}//${host}/ws`;
+}
+
+function normalizeTopicsInput(input) {
+    if (!input) {
+        return [];
+    }
+
+    let topics = [];
+    if (Array.isArray(input)) {
+        topics = input;
+    } else if (typeof input === 'string') {
+        topics = input.split(',');
+    } else {
+        return [];
+    }
+
+    return topics
+        .map(topic => {
+            if (typeof topic === 'string') {
+                return topic.trim();
+            }
+            if (topic === null || topic === undefined) {
+                return '';
+            }
+            return String(topic).trim();
+        })
+        .filter(topic => topic.length > 0);
 }
 
 export class WebSocketManager {
@@ -42,8 +72,23 @@ export class WebSocketManager {
             ...options
         };
 
-        // Create debug element for connection status
-        this.createDebugPanel();
+        this.autoSubscribeFromHealth = this.options.autoSubscribeFromHealth !== false;
+        this.pendingCommands = [];
+        this.healthTopics = [];
+        this.topicPanel = null;
+
+        const optionTopics = normalizeTopicsInput(this.options.topics || this.options.defaultTopics);
+        const globalTopicsSource = typeof window !== 'undefined' ? window.CVIZ_TOPICS : undefined;
+        const globalTopics = normalizeTopicsInput(globalTopicsSource);
+        const storedTopics = this.loadStoredTopics();
+        let initialTopics = optionTopics.length > 0 ? optionTopics : (storedTopics.length > 0 ? storedTopics : globalTopics);
+        const queryTopics = this.getTopicsFromQuery();
+        if (initialTopics.length === 0 && queryTopics.length > 0) {
+            initialTopics = queryTopics;
+        } else if (queryTopics.length > 0) {
+            initialTopics = queryTopics;
+        }
+        this.desiredTopics = new Set(initialTopics);
 
         // Delay initialization to ensure DOM is ready
         if (document.readyState === 'loading') {
@@ -55,96 +100,27 @@ export class WebSocketManager {
         // Store decay time for each topic
         this.lifeTimes = {};
         this.historyLimits = {};
+
+        if (this.desiredTopics.size > 0) {
+            this.ensureSubscriptionCommandQueued();
+        }
     }
 
-    createDebugPanel() {
-        // Create a debug panel to display connection status
-        const debugPanel = document.createElement('div');
-        debugPanel.id = 'ws-debug-panel';
-        debugPanel.style.position = 'fixed';
-        debugPanel.style.bottom = '10px';
-        debugPanel.style.right = '10px';
-        debugPanel.style.backgroundColor = 'rgba(0,0,0,0.7)';
-        debugPanel.style.color = 'white';
-        debugPanel.style.padding = '10px';
-        debugPanel.style.borderRadius = '5px';
-        debugPanel.style.fontFamily = 'monospace';
-        debugPanel.style.fontSize = '12px';
-        debugPanel.style.zIndex = '9999';
-        debugPanel.style.maxWidth = '400px';
-        debugPanel.style.maxHeight = '200px';
-        debugPanel.style.overflowY = 'auto';
-
-        // Add initial content
-        debugPanel.innerHTML = `
-            <div><strong>WebSocket Status:</strong> <span id="ws-status">Initializing...</span></div>
-            <div><strong>Connection URL:</strong> <span id="ws-url">${getWebSocketUrl()}</span></div>
-            <div><strong>Connection Attempts:</strong> <span id="ws-attempts">0</span></div>
-            <div><strong>Network Info:</strong> <span id="ws-network">Checking...</span></div>
-            <div><strong>Last Error:</strong> <span id="ws-error">None</span></div>
-            <button id="ws-test-btn" style="margin-top: 5px; padding: 2px 5px;">Test Connection</button>
-        `;
-
-        // Append to document when ready
-        if (document.body) {
-            document.body.appendChild(debugPanel);
-            document.getElementById('ws-test-btn').addEventListener('click', () => this.testConnection());
-        } else {
-            document.addEventListener('DOMContentLoaded', () => {
-                document.body.appendChild(debugPanel);
-                document.getElementById('ws-test-btn').addEventListener('click', () => this.testConnection());
-            });
+    getTopicsFromQuery() {
+        if (typeof window === 'undefined' || !window.location) {
+            return [];
         }
 
-        this.debugPanel = debugPanel;
-    }
-
-    updateDebugPanel(status, error = null) {
-        if (!document.getElementById('ws-status')) return;
-
-        document.getElementById('ws-status').textContent = status;
-        document.getElementById('ws-attempts').textContent = this.reconnectAttempts;
-        document.getElementById('ws-url').textContent = getWebSocketUrl();
-
-        if (error) {
-            document.getElementById('ws-error').textContent = error;
-            document.getElementById('ws-error').style.color = 'red';
+        try {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('topics')) {
+                return [];
+            }
+            return normalizeTopicsInput(params.get('topics'));
+        } catch (error) {
+            Logger.warn(`Unable to parse topics from query string: ${error.message}`);
+            return [];
         }
-
-        // Get network information
-        const networkInfo = [];
-        if (window.location && window.location.hostname) {
-            networkInfo.push(`Page host: ${window.location.hostname}:${window.location.port}`);
-        }
-
-        // Check if running in Docker
-        fetch('/health')
-            .then(response => response.json())
-            .then(data => {
-                networkInfo.push(`Server health: ${data.status}`);
-                document.getElementById('ws-network').innerHTML = networkInfo.join('<br>');
-            })
-            .catch(err => {
-                networkInfo.push(`Server health check failed: ${err.message}`);
-                document.getElementById('ws-network').innerHTML = networkInfo.join('<br>');
-            });
-    }
-
-    testConnection() {
-        // Attempt to create a temporary WebSocket connection to test connectivity
-        this.updateDebugPanel("Testing connection...");
-
-        // Send a ping request to the health endpoint instead of creating a WebSocket
-        fetch('/health')
-            .then(response => response.json())
-            .then(data => {
-                Logger.log("Server health check succeeded:", data);
-                this.updateDebugPanel(`Connection test successful: ${JSON.stringify(data)}`);
-            })
-            .catch(error => {
-                Logger.error(`Connection test failed: ${error.message || "Unknown error"}`);
-                this.updateDebugPanel("Connection test failed", error.message || "Unknown error");
-            });
     }
 
     init() {
@@ -202,6 +178,9 @@ export class WebSocketManager {
         setTimeout(() => {
             this.connectWebSocket();
         }, 1000);
+
+        this.topicPanel = new TopicsPanel(this);
+        this.topicPanel.updateSelection(this.desiredTopics);
     }
 
     logNetworkInfo() {
@@ -212,20 +191,27 @@ export class WebSocketManager {
 
         // Try to fetch the server health endpoint
         fetch('/health')
-            .then(response => response.json())
-            .then(data => {
+           .then(response => response.json())
+           .then(data => {
                 Logger.log(`Server health check: ${JSON.stringify(data)}`);
-                this.updateDebugPanel(`Health OK: ${JSON.stringify(data)}`);
+
+               if (Array.isArray(data.topics)) {
+                   this.healthTopics = data.topics;
+                   if (this.autoSubscribeFromHealth && this.desiredTopics.size === 0 && this.healthTopics.length > 0) {
+                       this.setTopics(this.healthTopics);
+                   }
+                    if (this.topicPanel) {
+                        this.topicPanel.setTopics(data.available_topics || this.healthTopics);
+                    }
+               }
             })
             .catch(error => {
                 Logger.error(`Server health check failed: ${error.message}`);
-                this.updateDebugPanel("Health check failed", error.message);
             });
     }
 
     connectWebSocket() {
         Logger.log(`Connecting to ${getWebSocketUrl()}...`);
-        this.updateDebugPanel("Connecting...");
 
         try {
             this.ws = new WebSocket(getWebSocketUrl());
@@ -234,7 +220,6 @@ export class WebSocketManager {
             const connectionTimeout = setTimeout(() => {
                 if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
                     Logger.error("WebSocket connection timeout");
-                    this.updateDebugPanel("Connection timeout");
                     this.ws.close();
                 }
             }, 5000);
@@ -243,7 +228,17 @@ export class WebSocketManager {
                 clearTimeout(connectionTimeout);
                 Logger.log("WebSocket connected successfully!");
                 this.reconnectAttempts = 0;
-                this.updateDebugPanel("Connected");
+
+                 const hadPending = this.pendingCommands.length > 0;
+                 this.flushPendingCommands();
+
+                 if (!hadPending) {
+                     if (this.desiredTopics.size > 0) {
+                         this.sendSubscriptionUpdate();
+                     } else if (this.autoSubscribeFromHealth && this.healthTopics.length > 0) {
+                         this.setTopics(this.healthTopics);
+                     }
+                 }
             };
 
             this.ws.onerror = (error) => {
@@ -258,13 +253,12 @@ export class WebSocketManager {
                 }
 
                 Logger.error(`WebSocket detailed error: ${detailedError}`);
-                this.updateDebugPanel("Connection error", `${errorMsg} (${detailedError})`);
             };
 
             this.ws.onclose = (event) => {
                 clearTimeout(connectionTimeout);
                 Logger.warn(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason || "No reason provided"}`);
-                this.updateDebugPanel("Disconnected", `Code: ${event.code}, Reason: ${event.reason || "No reason"}`);
+                this.ensureSubscriptionCommandQueued();
                 this.reconnect();
             };
 
@@ -273,7 +267,6 @@ export class WebSocketManager {
             };
         } catch (error) {
             Logger.error(`WebSocket creation error: ${error.message}`);
-            this.updateDebugPanel("Creation error", error.message);
             this.reconnect();
         }
     }
@@ -542,6 +535,153 @@ export class WebSocketManager {
         };
     }
 
+    queueCommand(payload) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify(payload));
+            return;
+        }
+
+        if (payload.action === 'set_topics') {
+            this.pendingCommands = this.pendingCommands.filter(cmd => cmd.action !== 'set_topics');
+        }
+
+        this.pendingCommands.push(payload);
+    }
+
+    flushPendingCommands() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            return;
+        }
+
+        while (this.pendingCommands.length > 0) {
+            const payload = this.pendingCommands.shift();
+            this.ws.send(JSON.stringify(payload));
+        }
+    }
+
+    ensureSubscriptionCommandQueued() {
+        if (this.desiredTopics.size === 0) {
+            return;
+        }
+
+        this.queueCommand({
+            action: 'set_topics',
+            topics: Array.from(this.desiredTopics)
+        });
+    }
+
+    setTopics(topics) {
+        const normalized = normalizeTopicsInput(topics);
+        const previous = new Set(this.desiredTopics);
+        this.desiredTopics = new Set(normalized);
+        const removed = [...previous].filter(topic => !this.desiredTopics.has(topic));
+        this.clearRendererTopics(removed);
+        this.filterRendererTopics(this.desiredTopics);
+        this.persistTopics();
+        if (this.topicPanel) {
+            this.topicPanel.updateSelection(this.desiredTopics);
+        }
+        this.sendSubscriptionUpdate();
+    }
+
+    subscribeToTopics(topics) {
+        const normalized = normalizeTopicsInput(topics);
+        normalized.forEach(topic => this.desiredTopics.add(topic));
+        this.persistTopics();
+        if (this.topicPanel) {
+            this.topicPanel.updateSelection(this.desiredTopics);
+        }
+        this.sendSubscriptionUpdate();
+    }
+
+    unsubscribeFromTopics(topics) {
+        const normalized = normalizeTopicsInput(topics);
+        const removed = [];
+        normalized.forEach(topic => {
+            if (this.desiredTopics.has(topic)) {
+                this.desiredTopics.delete(topic);
+                removed.push(topic);
+            }
+        });
+        this.clearRendererTopics(removed);
+        this.persistTopics();
+        if (this.topicPanel) {
+            this.topicPanel.updateSelection(this.desiredTopics);
+        }
+        this.sendSubscriptionUpdate();
+    }
+
+    sendSubscriptionUpdate() {
+        this.ensureSubscriptionCommandQueued();
+        this.flushPendingCommands();
+    }
+
+    clearRendererTopics(topics) {
+        if (!this.renderer || !topics || topics.length === 0) {
+            return;
+        }
+
+        topics.forEach(topic => {
+            if (this.renderer && typeof this.renderer.clearTopic === 'function') {
+                this.renderer.clearTopic(topic);
+            }
+        });
+
+        this.refreshRenderer();
+    }
+
+    filterRendererTopics(allowedTopicsSet) {
+        if (!this.renderer || !allowedTopicsSet) {
+            return;
+        }
+
+        if (typeof this.renderer.filterTopics === 'function') {
+            this.renderer.filterTopics(allowedTopicsSet);
+        } else {
+            this.refreshRenderer();
+        }
+    }
+
+    refreshRenderer() {
+        if (!this.renderer) return;
+
+        if (typeof this.renderer.refreshSources === 'function') {
+            this.renderer.refreshSources();
+        } else if (typeof this.renderer.redrawAllGeometries === 'function') {
+            this.renderer.redrawAllGeometries();
+        }
+    }
+
+    loadStoredTopics() {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return [];
+        }
+
+        try {
+            const stored = window.localStorage.getItem(TOPICS_STORAGE_KEY);
+            if (!stored) {
+                return [];
+            }
+            const parsed = JSON.parse(stored);
+            return normalizeTopicsInput(parsed);
+        } catch (error) {
+            Logger.warn(`Failed to load stored topics: ${error.message}`);
+            return [];
+        }
+    }
+
+    persistTopics() {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(TOPICS_STORAGE_KEY, JSON.stringify(Array.from(this.desiredTopics)));
+        } catch (error) {
+            Logger.warn(`Failed to persist topics: ${error.message}`);
+        }
+    }
+
     processGeoJSONMessage(data) {
      // If we don't have GeoJSON data but have a regular message
         if (!this.isGeoJSONMessage(data) && data) {
@@ -573,7 +713,6 @@ export class WebSocketManager {
             const timeout = BASE_RECONNECT_TIMEOUT * Math.pow(2, this.reconnectAttempts);
 
             Logger.warn(`Reconnecting in ${timeout / 1000} seconds... (Attempt ${this.reconnectAttempts + 1})`);
-            this.updateDebugPanel(`Reconnecting in ${timeout / 1000}s (${this.reconnectAttempts + 1}/${this.options.maxReconnectAttempts})`);
 
             this.reconnectAttempts++;
 
@@ -582,7 +721,6 @@ export class WebSocketManager {
             }, timeout);
         } else {
             Logger.error("Max reconnection attempts reached. Please check the server.");
-            this.updateDebugPanel("Failed - max attempts reached");
         }
     }
 }

@@ -18,6 +18,8 @@ For map-app:
 ```bash
 pip install zmq json numpy websockets
 npm install pixi.js
+# optional: point everything at a custom ZMQ endpoint
+export CVIZ_ZMQ_ENDPOINT="tcp://0.0.0.0:5555"
 ```
 Run app:
 ```bash
@@ -70,6 +72,15 @@ Cviz renders geometries based on Mapbox. You can use your own Mapbox token by re
 ```javascript
  mapboxAccessToken = 'YOUR_MAPBOX_TOKEN';
 ```
+
+## Configuration
+
+- `CVIZ_ZMQ_ENDPOINT` (default `tcp://127.0.0.1:5555`): set this before starting the FastAPI server, simulators, or tooling so every publisher/subscriber talks to the same ZMQ endpoint.
+  ```bash
+  export CVIZ_ZMQ_ENDPOINT="tcp://192.168.1.10:6000"
+  uvicorn app:app --host 0.0.0.0 --reload
+  ```
+- Frontend topic selection: pass `?topics=point,multipolygon` in the URL (or define `window.CVIZ_TOPICS = ['point','multipolygon']` before the app loads) to subscribe only to specific topics. You can also adjust dynamically from the console with `window.mapApp.setTopics(['point'])` or `window.canvasApp.subscribeToTopics(['linestring'])`.
 
 ## How it works
 You can send topics to the Cviz server, and Cviz sends data via Websockets to the frontend. 

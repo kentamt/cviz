@@ -1,4 +1,5 @@
 # topic_list.py - List all available topics
+import os
 import argparse
 import asyncio
 import json
@@ -7,11 +8,13 @@ import zmq
 from collections import defaultdict
 from datetime import datetime
 
+DEFAULT_ZMQ_ENDPOINT = os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
+
 
 class TopicLister:
     """List available topics with their information."""
 
-    def __init__(self, zmq_endpoint="tcp://127.0.0.1:5555"):
+    def __init__(self, zmq_endpoint=DEFAULT_ZMQ_ENDPOINT):
         self.zmq_endpoint = zmq_endpoint
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.SUB)
@@ -131,7 +134,7 @@ class TopicLister:
 
 async def main():
     parser = argparse.ArgumentParser(description='List available topics')
-    parser.add_argument('--endpoint', '-e', type=str, default="tcp://127.0.0.1:5555",
+    parser.add_argument('--endpoint', '-e', type=str, default=DEFAULT_ZMQ_ENDPOINT,
                         help='ZMQ endpoint to connect to')
     parser.add_argument('--duration', '-d', type=int, default=5,
                         help='Duration to scan for topics (seconds)')

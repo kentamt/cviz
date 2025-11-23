@@ -1,4 +1,5 @@
 # enhanced_playback.py (updated with repeat option)
+import os
 import argparse
 import asyncio
 import json
@@ -20,11 +21,12 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s: %(message)s'
 )
 
+DEFAULT_ZMQ_ENDPOINT = os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
 
 class InteractivePlayback:
     """Interactive playback tool with speed control, repeat, and pause/resume functionality."""
 
-    def __init__(self, recording_file, zmq_endpoint="tcp://127.0.0.1:5555", initial_speed=1.0, repeat=False):
+    def __init__(self, recording_file, zmq_endpoint=DEFAULT_ZMQ_ENDPOINT, initial_speed=1.0, repeat=False):
         """Initialize the interactive playback system.
 
         Args:
@@ -419,7 +421,7 @@ async def main():
     parser = argparse.ArgumentParser(description='Interactive Cviz Data Playback with Speed Control and Repeat')
     parser.add_argument('--file', type=str, required=True, help='Recording file to play back')
     parser.add_argument('--speed', type=float, default=1.0, help='Initial playback speed factor (1.0 = real-time)')
-    parser.add_argument('--endpoint', type=str, default="tcp://127.0.0.1:5555", help='ZMQ endpoint')
+    parser.add_argument('--endpoint', type=str, default=DEFAULT_ZMQ_ENDPOINT, help='ZMQ endpoint')
     parser.add_argument('--repeat', '-r', action='store_true', help='Repeat playback continuously')
     parser.add_argument('--loops', type=int, help='Number of loops to play (requires --repeat)')
 

@@ -50,9 +50,6 @@ export class MapRenderer {
         this.mapStyle = mapStyle;
         this.mapboxToken = mapboxAccessToken;
 
-        // Fix 2: Add test button that we can click on/off the map to debug events
-        this.addTestButton();
-
         // Fix 3: Initialize WebSocket and map with improved timing
         this.initializeMapAndWebSocket(wsOptions);
 
@@ -63,58 +60,6 @@ export class MapRenderer {
         window.addEventListener('resize', () => {
             this.resize();
         });
-    }
-
-    addTestButton() {
-        // Create a non-interfering test button outside the map
-        const testButton = document.createElement('button');
-        testButton.textContent = "Test Map";
-        testButton.style.position = 'absolute';
-        testButton.style.top = '10px';
-        testButton.style.left = '10px';
-        testButton.style.zIndex = '1001';
-        testButton.style.padding = '5px 10px';
-        testButton.style.backgroundColor = '#0078ff';
-        testButton.style.color = 'white';
-        testButton.style.border = 'none';
-        testButton.style.borderRadius = '3px';
-        testButton.style.cursor = 'pointer';
-
-        testButton.addEventListener('click', () => {
-            if (this.mapboxRenderer && this.mapboxRenderer.map) {
-                const center = this.mapboxRenderer.map.getCenter();
-                const zoom = this.mapboxRenderer.map.getZoom();
-
-                // Programmatically move the map to verify API works
-                this.mapboxRenderer.map.flyTo({
-                    center: [center.lng + 0.01, center.lat + 0.01],
-                    zoom: zoom,
-                    speed: 0.5,
-                    curve: 1,
-                    essential: true // Indicates the map movement is considered essential
-                });
-
-                this.debugInfo.innerHTML = `
-                    <div>Map test initiated!</div>
-                    <div>Previous center: [${center.lng.toFixed(4)}, ${center.lat.toFixed(4)}]</div>
-                    <div>New center: [${(center.lng + 0.01).toFixed(4)}, ${(center.lat + 0.01).toFixed(4)}]</div>
-                `;
-
-                // Log interaction capabilities
-                if (this.mapboxRenderer && this.mapboxRenderer.map) {
-                    const map = this.mapboxRenderer.map;
-                    const dragEnabled = map.dragPan && map.dragPan.isEnabled();
-                    const zoomEnabled = map.scrollZoom && map.scrollZoom.isEnabled();
-
-                    this.debugInfo.innerHTML += `
-                        <div>Drag enabled: ${dragEnabled ? 'Yes' : 'No'}</div>
-                        <div>Zoom enabled: ${zoomEnabled ? 'Yes' : 'No'}</div>
-                    `;
-                }
-            }
-        });
-
-        document.body.appendChild(testButton);
     }
 
     initializeMapAndWebSocket(wsOptions) {
@@ -306,5 +251,29 @@ export class MapRenderer {
         // Let the renderer add the actual marker
         this.mapboxRenderer.addDebugMarker(lng, lat, color);
         console.log(`Added debug marker at [${lng}, ${lat}]`);
+    }
+
+    setTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.setTopics === 'function') {
+            this.wsManager.setTopics(topics);
+        }
+    }
+
+    subscribeToTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.subscribeToTopics === 'function') {
+            this.wsManager.subscribeToTopics(topics);
+        }
+    }
+
+    unsubscribeFromTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.unsubscribeFromTopics === 'function') {
+            this.wsManager.unsubscribeFromTopics(topics);
+        }
+    }
+
+    clearTopic(topic) {
+        if (this.mapboxRenderer && typeof this.mapboxRenderer.clearTopic === 'function') {
+            this.mapboxRenderer.clearTopic(topic);
+        }
     }
 }

@@ -473,4 +473,28 @@ export class CanvasRenderer {
         this.updateGeometryTransform();
         Logger.log("View reset to initial state");
     }
+
+    setTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.setTopics === 'function') {
+            this.wsManager.setTopics(topics);
+        }
+    }
+
+    subscribeToTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.subscribeToTopics === 'function') {
+            this.wsManager.subscribeToTopics(topics);
+        }
+    }
+
+    unsubscribeFromTopics(topics) {
+        if (this.wsManager && typeof this.wsManager.unsubscribeFromTopics === 'function') {
+            this.wsManager.unsubscribeFromTopics(topics);
+        }
+    }
+
+    clearTopic(topic) {
+        if (this.geometryRenderer && typeof this.geometryRenderer.clearTopic === 'function') {
+            this.geometryRenderer.clearTopic(topic);
+        }
+    }
 }

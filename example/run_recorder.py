@@ -1,7 +1,10 @@
 # run_recorder.py
+import os
 import argparse
 import asyncio
 from recorder import DataRecorder
+
+DEFAULT_ZMQ_ENDPOINT = os.environ.get("CVIZ_ZMQ_ENDPOINT", "tcp://127.0.0.1:5555")
 
 
 async def run_recorder(topics, endpoint, output_dir, duration):
@@ -28,7 +31,7 @@ async def run_recorder(topics, endpoint, output_dir, duration):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run Cviz Data Recorder')
     parser.add_argument('--topics', type=str, help='Comma-separated list of topics to record')
-    parser.add_argument('--endpoint', type=str, default="tcp://127.0.0.1:5555", help='ZMQ endpoint')
+    parser.add_argument('--endpoint', type=str, default=DEFAULT_ZMQ_ENDPOINT, help='ZMQ endpoint')
     parser.add_argument('--output-dir', type=str, default="recordings", help='Output directory')
     parser.add_argument('--duration', type=int, help='Recording duration in seconds (optional)')
 
