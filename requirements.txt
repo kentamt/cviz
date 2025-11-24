@@ -4,3 +4,4 @@ zmq
 pyproj
 numpy
 websockets
+osmnx
