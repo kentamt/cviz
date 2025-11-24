@@ -33,6 +33,7 @@ For canvas-app, change `canvas_index.html` to `index.html`, and the below in `ap
 # Run any startup scripts asynchronously
 script_path = "example/geojson_example.py"  # <-- canvas app
 # script_path = "example/geojson_london_example.py"  # <-- map app
+# script_path = "example/osm_road_walk.py"  # <-- road-network example (requires osmnx)
 ```
 
 ## Data type
