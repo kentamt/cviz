@@ -9,6 +9,9 @@ Web-based visualisation tool for Python. Cviz has two visualisation modes: canva
     <td>
       <img src="https://github.com/user-attachments/assets/945ca631-0b93-406d-89e8-fe586d11c841" controls width="100%"></video>
     </td>
+    <td>
+      <img src="https://github.com/user-attachments/assets/247ebb3a-3923-4a7c-a426-50bc3c1abc06" controls width="70%"></video>
+    </td>
   </tr>
 </table>
 
